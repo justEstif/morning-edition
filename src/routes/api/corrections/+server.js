@@ -19,6 +19,9 @@ export async function GET({ url, setHeaders }) {
  *     {type:"click", url, session_id, item_id, item_url?, source?, edition_date}
  *   v1 (legacy importer): {type:"vote|grade", value:"up|down|deep-read|skim|capture",
  *    item_id:"...", edition_date:"YYYY-MM-DD"}
+ * The implicit signal types (read_progress, star, capture, highlight) are NOT
+ * accepted here — they are appended directly by the pipeline's sync_signals.py
+ * on the trusted sync path (session_id "sync-<origin>").
  * A v2 event whose item_id is not in its edition_date's edition is rejected
  * (400) and logged to rejections.jsonl — it never reaches the ledger.
  */

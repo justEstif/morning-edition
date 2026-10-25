@@ -17,7 +17,8 @@
 
      {"id":"e-<rand>","ts":"ISO-8601","schema_v":2,"session_id":"...",
       "item_id":"...","item_url":"...","source":"readeck|miniflux|hn",
-      "edition_date":"YYYY-MM-DD","type":"verdict|click|read_progress|star|capture",
+      "edition_date":"YYYY-MM-DD",
+      "type":"verdict|click|read_progress|star|capture|highlight",
       ...type payload}
 
      verdict:       value: deep-read|skim|drop; optional reason
@@ -31,6 +32,13 @@
      read_progress: progress_pct, origin: readeck (synced by id)
      star:          starred, origin: miniflux (synced)
      capture:       origin: readeck (synced — a Readeck save IS the capture)
+     highlight:     kind: 'highlight', annotation_id, text, created,
+                    note?, origin: readeck (synced from Readeck annotations
+                    by readeck item id; one event per annotation)
+
+   The human-facing API accepts only verdict|click; read_progress, star,
+   capture and highlight ride the trusted direct-append sync path
+   (pipeline sync_signals.py, session_id "sync-<origin>").
 
    `skip` is derived downstream (presented >=2 editions, zero events) and is
    never stored. v1 rows stay byte-identical:
@@ -195,7 +203,11 @@ function rejectionsPath() {
 }
 
 /** Referential validation: v2 events must reference an item that was actually
- *  presented in their edition. Rejections are logged separately, never appended. */
+ *  presented in their edition. Rejections are logged separately, never appended.
+ *  NOTE: this FAILS OPEN when no edition file exists for the event's
+ *  edition_date (nothing on disk to check against) — a ghost date with a ghost
+ *  id is accepted until that edition is built; acceptable for a personal
+ *  pipeline, where editions are rsynced before grading happens. */
 export async function referentiallyValid(ev) {
 	if (ev.schema_v !== 2) return true; // legacy rows predate edition-carried ids
 	const ed = await loadEdition(ev.edition_date);

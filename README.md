@@ -45,9 +45,12 @@ Python builder (source of truth)   →  edition JSON  →  SvelteKit app (render
     previous verdict in the same session — bursts are down-weighted at
     analysis time, never last-write-wins), `click` (`url`; the edition page
     posts these on click-through). Implicit signals (`read_progress`,
-    `star`, `capture`) are synced in by the pipeline; `skip` is derived
-    downstream and never stored. Legacy v1 bodies
-    (`{"type":"vote|grade","value":"up|down|deep-read|skim|capture",...}`)
+    `star`, `capture`, `highlight` — the last synced one-per-annotation
+    from Readeck with `annotation_id`/`text`/`note`/`created`, joined by
+    readeck item id) are synced in by the pipeline; `skip` is derived
+    downstream and never stored. The human-facing API accepts only
+    `verdict|click`; implicit types ride the trusted sync path. Legacy v1
+    bodies (`{"type":"vote|grade","value":"up|down|deep-read|skim|capture",...}`)
     are still accepted and stay readable via `schema_v`.
     A v2 event whose `item_id` is absent from its `edition_date`'s edition is
     rejected (400) and logged to `rejections.jsonl` — test/typo rows never
@@ -142,6 +145,13 @@ dokku ps:scale morning-edition web=1
 git remote add dokku dokku@contabo:morning-edition   # one-time
 git push dokku main
 
+# POST-DEPLOY AUTH ASSERTION (run after EVERY deploy — see incident note below)
+for p in / /grade /api/corrections; do
+  code=$(curl -s -o /dev/null -w '%{http_code}' -A 'Mozilla/5.0' "https://morning-edition.estifanos.cc$p")
+  [ "$code" = "401" ] || { echo "AUTH DOWN: $p returned $code"; exit 1; }
+done
+echo "auth OK: 401 without credentials on all routes"
+
 # daily edition refresh (run by the 7am ET Hermes cron; no manual steps)
 rsync -a ~/.hermes/morning-edition/editions/<today>/edition.json \
   contabo:/var/lib/morning-edition/editions/<today>/edition.json
@@ -151,6 +161,27 @@ rsync -a ~/.hermes/morning-edition/editions/<today>/edition.json \
 
 The daily build pipeline itself is documented in
 `~/.hermes/morning-edition/RUNBOOK.md` (local-only; not in this repo).
+
+**Auth incident note (2026-10-25).** Dokku's `http-auth` plugin stores its
+enabled state as a single file, `<app>/nginx.conf.d/http-auth.conf` (the
+report derives "enabled" from that file's existence; `htpasswd` holds the
+users). That file was found deleted on 2026-10-25 (deletion window:
+05:19 CET, ~20 minutes after the previous night's deploy session ended; no
+dokku event or command log records the deletion — most likely a stray
+cleanup command from that session). The result was a fully public site with
+no credentials required, caught by review the same day. Restoring is one
+command — the users in `htpasswd` are untouched by a disable:
+
+```sh
+ssh contabo 'APP_ROOT=/home/dokku/morning-edition; \
+  sigil -f /var/lib/dokku/plugins/available/http-auth/templates/http-auth.conf \
+  APP_ROOT=$APP_ROOT ALLOWED_IPS="" HAS_ALLOWED_USERS=true | cat -s \
+  > $APP_ROOT/nginx.conf.d/http-auth.conf && nginx -s reload'
+```
+
+Deploys do NOT clear auth (`nginx.conf` includes `nginx.conf.d/*.conf`),
+but run the POST-DEPLOY AUTH ASSERTION above after every deploy anyway — a
+silent disable must not recur undetected.
 
 ## Demo verifier / CI
 
