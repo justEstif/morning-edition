@@ -1,0 +1,61 @@
+/* The Morning Edition — Victorian broadsheet, pure B&W.
+   Adapted from design spike 001d (victorian-modern); drop caps on section
+   openers only; dagger marking system from 001b. No color anywhere. */
+:root {
+  --ink:#141414; --mid:#57534a; --rule:#9a968c; --paper:#ffffff;
+  --serif:'IM Fell English',Georgia,serif;
+  --sc:'IM Fell English SC',Georgia,serif;
+}
+* { box-sizing:border-box; }
+body { margin:0; background:#fff; color:var(--ink); font-family:var(--serif); }
+a { color:inherit; text-decoration:none; }
+a:hover { text-decoration:underline; }
+
+.frame { max-width:1140px; margin:18px auto; border:3px double var(--ink); padding:4px; background:var(--paper); }
+.sheet { border:1px solid var(--ink); padding:22px 30px 40px; }
+
+.masthead { text-align:center; border-bottom:3px double var(--ink); padding-bottom:8px; }
+.masthead .over { font-family:var(--sc); font-size:11px; letter-spacing:4px; text-transform:uppercase; color:var(--mid); }
+.masthead h1 { font-family:'Pirata One',serif; font-weight:400; font-size:58px; margin:4px 0; line-height:1; }
+.masthead h1 a:hover { text-decoration:none; }
+.masthead .under { font-style:italic; font-size:13px; color:var(--mid); }
+
+.rail { display:flex; justify-content:center; gap:10px; font-family:var(--sc); font-size:11px; letter-spacing:2px;
+  padding:7px 0; border-bottom:1px solid var(--rule); flex-wrap:wrap; }
+.rail .fl { color:var(--rule); }
+
+.lead { text-align:center; padding:22px 40px 20px; border-bottom:3px double var(--ink); }
+.lead .cap { font-family:var(--sc); font-size:11px; letter-spacing:3px; text-transform:uppercase; color:var(--mid); }
+.lead h2 { font-family:var(--sc); font-weight:400; font-size:34px; line-height:1.12; margin:8px 0 4px; word-spacing:3px; }
+.lead .deck { font-style:italic; font-size:15.5px; line-height:1.55; max-width:640px; margin:6px auto 0; }
+
+.cols { display:grid; grid-template-columns:repeat(3,1fr); }
+.item { padding:16px 18px 18px 0; text-align:justify; hyphens:auto; }
+.cols .item + .item { border-left:1px solid var(--rule); padding-left:18px; }
+.item h3 { font-family:var(--sc); font-weight:400; text-align:center; font-size:17.5px; line-height:1.2; margin:6px 10px; word-spacing:2px; }
+.item p { font-size:13px; line-height:1.55; margin:6px 0 0; }
+/* Drop cap on the section opener ONLY */
+.item.drop-cap p:first-of-type::first-letter {
+  font-family:var(--serif); font-size:34px; line-height:.85; float:left; padding:3px 6px 0 0; color:var(--ink);
+}
+.div { text-align:center; color:var(--rule); font-size:14px; margin:2px 0; }
+.mark { font-family:var(--sc); letter-spacing:2px; font-size:11px; color:var(--mid); }
+.mark b { color:var(--ink); font-weight:400; }
+
+section h2.col-h { font-family:var(--sc); font-weight:400; text-align:center; font-size:20px; word-spacing:4px;
+  margin:26px 0 0; padding-top:10px; border-top:1px solid var(--rule); }
+section h2.col-h small { display:block; font-family:var(--serif); font-style:italic; font-size:12px; color:var(--mid); letter-spacing:0; word-spacing:0; }
+
+footer { text-align:center; border-top:3px double var(--ink); margin-top:34px; padding-top:10px; font-style:italic; font-size:12px; color:var(--mid); }
+
+@media print {
+  .frame { border:none; margin:0; max-width:none; padding:0; }
+  .sheet { border:none; padding:0; }
+  body { font-size:12pt; background:#fff; }
+  /* 2-column broadsheet grid on paper */
+  .cols { grid-template-columns:repeat(2,1fr); }
+  @page { margin:13mm; }
+  /* hide screen-only chrome (vote buttons, feedback UI, …) */
+  .screen-only { display:none !important; }
+  a { text-decoration:none; }
+}
