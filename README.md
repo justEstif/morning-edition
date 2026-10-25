@@ -212,8 +212,10 @@ dokku storage:add morning-edition /var/lib/morning-edition:/data
 dokku config:set morning-edition ME_DATA_DIR=/data ORIGIN=https://morning-edition.estifanos.cc
 dokku domains:add morning-edition morning-edition.estifanos.cc
 dokku letsencrypt:enable morning-edition
-# private: nginx-level basic auth (credentials generated out-of-band, NEVER committed)
-dokku http-auth:add morning-edition <user> <password>
+# session gate (src/hooks.server.ts guards every route; the only credential
+# pair lives here, never in the repo):
+dokku config:set morning-edition ME_ADMIN_USER=<user> ME_ADMIN_PASS=<pass>
+dokku config:set morning-edition ME_SESSION_SECRET=<64-hex>  # stable across redeploys
 dokku ps:scale morning-edition web=1
 
 # deploy (from the repo)
@@ -221,11 +223,21 @@ git remote add dokku dokku@contabo:morning-edition   # one-time
 git push dokku main
 
 # POST-DEPLOY AUTH ASSERTION (run after EVERY deploy — see incident note below)
-for p in / /grade /api/corrections; do
+# Session-gate model: PUBLIC_PATHS = {"/", "/login", "/api/edition"} in
+# src/hooks.server.ts is the source of truth for what is public.
+for p in / /api/edition; do
   code=$(curl -s -o /dev/null -w '%{http_code}' -A 'Mozilla/5.0' "https://morning-edition.estifanos.cc$p")
-  [ "$code" = "401" ] || { echo "AUTH DOWN: $p returned $code"; exit 1; }
+  [ "$code" = "200" ] || { echo "WRONG: $p returned $code (expected 200 — public by design)"; exit 1; }
 done
-echo "auth OK: 401 without credentials on all routes"
+for p in /grade /panel /admin; do
+  code=$(curl -s -o /dev/null -w '%{http_code}' -A 'Mozilla/5.0' "https://morning-edition.estifanos.cc$p")
+  [ "$code" = "303" ] || { echo "GATE DOWN: $p returned $code (expected 303 -> /login)"; exit 1; }
+done
+for p in /api/corrections /api/impressions; do
+  code=$(curl -s -o /dev/null -w '%{http_code}' -A 'Mozilla/5.0' "https://morning-edition.estifanos.cc$p")
+  [ "$code" = "401" ] || { echo "GATE DOWN: $p returned $code (expected 401 JSON)"; exit 1; }
+done
+echo "gate OK: public paths 200, pages 303 to /login, private APIs 401"
 
 # daily edition refresh (run by the 7am ET Hermes cron; no manual steps)
 rsync -a ~/.hermes/morning-edition/editions/<today>/edition.json \
@@ -237,26 +249,28 @@ rsync -a ~/.hermes/morning-edition/editions/<today>/edition.json \
 The daily build pipeline itself is documented in
 `~/.hermes/morning-edition/RUNBOOK.md` (local-only; not in this repo).
 
-**Auth incident note (2026-10-25).** Dokku's `http-auth` plugin stores its
-enabled state as a single file, `<app>/nginx.conf.d/http-auth.conf` (the
-report derives "enabled" from that file's existence; `htpasswd` holds the
-users). That file was found deleted on 2026-10-25 (deletion window:
-05:19 CET, ~20 minutes after the previous night's deploy session ended; no
-dokku event or command log records the deletion — most likely a stray
-cleanup command from that session). The result was a fully public site with
-no credentials required, caught by review the same day. Restoring is one
-command — the users in `htpasswd` are untouched by a disable:
+**Auth incident note (2026-10-25).** Until the session gate shipped, auth
+was nginx-level basic auth via dokku's `http-auth` plugin, whose "enabled"
+state was a single file, `<app>/nginx.conf.d/http-auth.conf`. That file was
+found deleted on 2026-10-25 (deletion window: 05:19 CET, ~20 minutes after
+the previous night's deploy session ended; no dokku event or command log
+records the deletion — most likely a stray cleanup command from that
+session), leaving the site fully public; caught by review the same day.
+Later that day the app's own cookie-session gate
+(`src/hooks.server.ts`, default-deny via `PUBLIC_PATHS`) deployed, and the
+http-auth file was removed for good — auth now lives in the application,
+where a missing file cannot silently disable it.
 
-```sh
-ssh contabo 'APP_ROOT=/home/dokku/morning-edition; \
-  sigil -f /var/lib/dokku/plugins/available/http-auth/templates/http-auth.conf \
-  APP_ROOT=$APP_ROOT ALLOWED_IPS="" HAS_ALLOWED_USERS=true | cat -s \
-  > $APP_ROOT/nginx.conf.d/http-auth.conf && nginx -s reload'
-```
+Do NOT re-add nginx basic auth on top of the session gate: a double gate
+hides session-gate regressions (everything 401s at the edge while the
+app's own gate could be broken and nothing would notice). If an IP-level
+or edge lock-down is ever genuinely wanted, it is a deliberate, dated
+decision recorded in `~/.hermes/morning-edition/RUNBOOK.md`, with the
+POST-DEPLOY AUTH ASSERTION above still required.
 
-Deploys do NOT clear auth (`nginx.conf` includes `nginx.conf.d/*.conf`),
-but run the POST-DEPLOY AUTH ASSERTION above after every deploy anyway — a
-silent disable must not recur undetected.
+Deploys do NOT touch the session gate (it ships in the app image), but run
+the POST-DEPLOY AUTH ASSERTION above after every deploy anyway — a silent
+regression must not recur undetected.
 
 ## Demo verifier / CI
 
