@@ -11,7 +11,7 @@
   },
   "overrides": [
     {
-      "files": ["scripts/**", "svelte.config.js", "vite.config.js"],
+      "files": ["scripts/**", "builder/**", "svelte.config.js", "vite.config.js"],
       "rules": {
         "no-console": "off"
       }
