@@ -2,7 +2,7 @@
   "name": "morning-edition",
   "version": "0.5.0",
   "private": true,
-  "description": "The Morning Edition — SvelteKit rendering + delivery layer. The Python builder stays the source of truth for edition JSON; this app renders it and collects feedback server-side.",
+  "description": "The Morning Edition — SvelteKit rendering + delivery layer. The TypeScript builder (builder/build_edition.ts, shared domain schema) is the source of truth for edition JSON; this app renders it and collects feedback server-side.",
   "type": "module",
   "scripts": {
     "dev": "vite dev",

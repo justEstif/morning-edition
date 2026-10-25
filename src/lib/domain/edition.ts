@@ -4,7 +4,7 @@
    src/lib/domain imports nothing outward — see src/lib/domain/ports.ts for
    the seams adapters implement).
 
-   The builder (pipeline, currently Python) is the source of truth; edition
+   The builder (pipeline, TypeScript, builder/build_edition.ts) is the source of truth; edition
    JSON read from disk or over HTTP is parsed, never trusted — parseEdition
    is the only sanctioned way to turn raw JSON into an Edition.
 
