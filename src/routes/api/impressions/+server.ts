@@ -2,7 +2,7 @@ import { json } from "@sveltejs/kit";
 import {
   rejectionRecordFor,
   referentiallyValid,
-  validateImpressionBatch,
+  validateTelemetryBatch,
 } from "$lib/domain/feedback.js";
 import { editionItemIds } from "$lib/domain/edition.js";
 import { corrections, editions, wireDeps } from "$lib/server/store.js";
@@ -10,16 +10,20 @@ import type { LedgerEvent } from "$lib/domain/feedback.js";
 import type { RequestHandler } from "./$types.js";
 
 /**
- * POST /api/impressions — append a batch of viewport-exposure events to the
- * same JSONL ledger the corrections route appends to (card t_41df1f78,
- * research R1: impressions are the denominator for every engagement rate).
- *   body: {events: [{session_id, item_id, edition_date, position, section,
- *                    tier, seen_ms, item_url?, source?, explore_flag?,
- *                    propensity?}, ...]}
+ * POST /api/impressions — append a batch of client-captured telemetry events
+ * to the same JSONL ledger the corrections route appends to (card
+ * t_41df1f78, research R1; dwell joined in card t_ea679b5a, research R2).
+ *   body: {events: [...]}
+ *   impression: {session_id, item_id, edition_date, position, section, tier,
+ *                seen_ms, item_url?, source?, explore_flag?, propensity?}
+ *   dwell:      {session_id, item_id, edition_date, url, dwell_ms,
+ *                opened_at, item_url?, source?}
  * ts/id/schema_v are server-stamped; the client qualifies exposures before
- * sending (≥50% viewport held ≥500ms, one impression per item+session+
- * edition — those thresholds live in the domain and are re-enforced by
- * validateImpressionBatch here).
+ * sending (≥50% viewport held ≥500ms) and only emits dwell inside
+ * [MIN_DWELL_MS, MAX_DWELL_MS] — the domain re-enforces both here.
+ * Dwell is SHADOW-MODE: capture only — no rubric, recommender, or builder
+ * logic reads these events yet (the /admin read-stats audit display is the
+ * sole consumer).
  * Session-gated exactly like /api/corrections POST: the same proxy auth
  * covers both, so public visitors are never tracked — Estifanos's
  * logged-in reading is the signal.
@@ -37,7 +41,7 @@ export const POST: RequestHandler = async ({ request }) => {
     return json({ error: "body must be JSON" }, { status: 400 });
   }
   try {
-    const events = validateImpressionBatch(body, wireDeps);
+    const events = validateTelemetryBatch(body, wireDeps);
 
     // Referential check, one edition load per distinct date in the batch.
     const failOpenIds = new Map<string, Set<string> | null>();

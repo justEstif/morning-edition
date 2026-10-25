@@ -3,6 +3,7 @@
 	import { markFor, widthClass } from '$lib/domain/edition.js';
 	import type { EditionItem } from '$lib/domain/edition.js';
 	import { impression } from '$lib/impressions.js';
+	import { dwellOpen } from '$lib/dwell.js';
 	import type { PageData } from './$types.js';
 
 	let { data }: { data: PageData } = $props();
@@ -11,8 +12,9 @@
 	/* Grading-desk v2: the inline vote pass is gone — its editorial signal is a
 	   verdict at the grading desk. What the edition page records is implicit:
 	   click-throughs POST a v2 `click` event (keepalive so the POST survives
-	   the navigation) and viewport exposures POST `impression` batches
-	   (card t_41df1f78). Existing state stays server-side, any device. */
+	   the navigation), each click-through also records an open→return dwell
+	   (card t_ea679b5a, shadow-mode), and viewport exposures POST `impression`
+	   batches (card t_41df1f78). Existing state stays server-side, any device. */
 	const sessionId = crypto.randomUUID();
 
 	/* Impression capture: lead + lead-side well are captured #1/#2, so the
@@ -44,6 +46,16 @@
 	}
 
 	function trackClick(item: EditionItem) {
+		// Dwell pairs with the click: record the open now; the return
+		// (refocus / next load) settles it into one dwell event — shadow-mode,
+		// card t_ea679b5a.
+		dwellOpen({
+			item_id: item.id,
+			edition_date: ed.date,
+			url: item.url,
+			item_url: item.url,
+			source: item.source
+		});
 		try {
 			fetch('/api/corrections', {
 				method: 'POST',

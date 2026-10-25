@@ -25,7 +25,8 @@
    the public input unions simply have no member for them.
 
    Reader-signal schema additions (R2/R5, research t_54dfda6e): dwell is
-   client-captured and rides the PUBLIC path (validateDwell, its own route);
+   client-captured and rides the PUBLIC path (validateDwell, batched through
+   /api/impressions alongside impressions);
    the derived `skip` is a STORED event (idempotent, confidence-weighted,
    exposure-based thresholds) that rides the trusted sync path only. */
 import { DATE_RE } from "./edition.js";
@@ -132,15 +133,19 @@ export interface ImpressionEvent extends Envelope {
   propensity?: ImpressionPropensity;
 }
 
-/** Dwell longer than this is a lost tab, not reading (research R2: discard
- *  open→return gaps >30min). Enforced by the validator. */
+/** Dwell bounds (research R2, card: dwell capture). Gaps >MAX_DWELL_MS are
+ *  lost tabs, not reading; gaps <MIN_DWELL_MS are navigation noise (the same
+ *  debounce convention as impressions' EXPOSURE_MIN_MS — anything under 2s
+ *  is a mis-click bounce, not a read). Both enforced by the validator. */
 export const MAX_DWELL_MS = 30 * 60 * 1000;
+export const MIN_DWELL_MS = 2000;
 
 /** v2 dwell event (research R2, card: dwell capture): open→return on a
  *  click-through. The client pairs the click with the tab refocus/close and
- *  sends the delta; the validator rejects gaps over MAX_DWELL_MS so lost
- *  tabs can't masquerade as deep reading. The best-evidenced cheap implicit
- *  signal — capture from day one, use in scoring only after audit gates. */
+ *  sends the delta; the validator rejects gaps outside [MIN_DWELL_MS,
+ *  MAX_DWELL_MS] so bounces can't fake reads and lost tabs can't masquerade
+ *  as deep reading. The best-evidenced cheap implicit signal — capture from
+ *  day one, use in scoring only after audit gates. */
 export interface DwellEvent extends Envelope {
   type: "dwell";
   url: string;
@@ -583,11 +588,33 @@ export function validateImpressionBatch(body: unknown, deps: StampDeps): Impress
   return body.events.map((raw) => validateImpression(raw, deps));
 }
 
+/** Client-captured telemetry events that ride the batched /api/impressions
+ *  append path: viewport exposures + click-through dwell (card t_ea679b5a,
+ *  SHADOW-MODE — capture only; nothing downstream consumes dwell yet). */
+export type TelemetryEvent = ImpressionEvent | DwellEvent;
+
+/** Validate a mixed telemetry batch — each event dispatches on its `type`
+ *  ("impression" or "dwell"); unknown/missing types reject the whole batch
+ *  (same all-or-nothing contract as validateImpressionBatch). */
+export function validateTelemetryBatch(body: unknown, deps: StampDeps): TelemetryEvent[] {
+  if (!isPlainObject(body)) throw new Error("body must be a JSON object");
+  if (!Array.isArray(body.events)) throw new Error("body must be {events: [...]}");
+  if (body.events.length === 0) throw new Error("events must not be empty");
+  if (body.events.length > MAX_IMPRESSION_BATCH)
+    throw new Error(`batch too large (max ${MAX_IMPRESSION_BATCH} events)`);
+  return body.events.map((raw) => {
+    const type = isPlainObject(raw) ? raw.type : undefined;
+    if (type === "impression") return validateImpression(raw, deps);
+    if (type === "dwell") return validateDwell(raw, deps);
+    throw new Error(`event type must be "impression" or "dwell"`);
+  });
+}
+
 /** Validate one dwell event off the PUBLIC surface (wire body → canonical
- *  DwellEvent, throws on anything else). Enforces the R2 contract: 0 <
- *  dwell_ms <= MAX_DWELL_MS — longer gaps are lost tabs, not reading, and
- *  are rejected so the capture client retries as "lost" instead of ledgering
- *  a false deep-read signal. */
+ *  DwellEvent, throws on anything else). Enforces the R2 contract:
+ *  MIN_DWELL_MS <= dwell_ms <= MAX_DWELL_MS — shorter gaps are mis-click
+ *  bounce, longer gaps are lost tabs; both are rejected so the ledger only
+ *  ever holds plausible reading spans. */
 export function validateDwell(body: unknown, deps: StampDeps): DwellEvent {
   if (!isPlainObject(body)) throw new Error("dwell must be a JSON object");
   const sessionId = bounded(body.session_id, 100);
@@ -603,10 +630,12 @@ export function validateDwell(body: unknown, deps: StampDeps): DwellEvent {
   if (
     typeof dwellMs !== "number" ||
     !Number.isFinite(dwellMs) ||
-    dwellMs <= 0 ||
+    dwellMs < MIN_DWELL_MS ||
     dwellMs > MAX_DWELL_MS
   ) {
-    throw new Error(`dwell_ms must be 0-${MAX_DWELL_MS} (longer gaps are lost tabs, not reading)`);
+    throw new Error(
+      `dwell_ms must be ${MIN_DWELL_MS}-${MAX_DWELL_MS} (shorter is bounce noise, longer is a lost tab)`,
+    );
   }
   if (typeof body.opened_at !== "string" || body.opened_at.length === 0)
     throw new Error("dwell requires opened_at (ISO-8601 of the outbound click)");

@@ -60,8 +60,8 @@ are new adapters; the domain doesn't change.
     from Readeck with `annotation_id`/`text`/`note`/`created`, joined by
     readeck item id) are synced in by the pipeline; `skip` is derived
     downstream and never stored. The human-facing corrections API accepts
-    only `verdict|click`; impressions POST to their own route; implicit
-    types ride the trusted sync path. Legacy v1
+    only `verdict|click`; impressions and dwell POST to their own route;
+    implicit types ride the trusted sync path. Legacy v1
     bodies (`{"type":"vote|grade","value":"up|down|deep-read|skim|capture",...}`)
     are still accepted and stay readable via `schema_v`.
     A v2 event whose `item_id` is absent from its `edition_date`'s edition is
@@ -81,6 +81,21 @@ are new adapters; the domain doesn't change.
     visitors are never tracked. Same rejection contract: bad shape → 400;
     an event whose `item_id` is absent from its edition → 400 for the whole
     batch (all-or-nothing) + `rejections.jsonl` rows.
+  - Click-through **dwell** (card t_ea679b5a, research R2 — Morita '94 →
+    Yahoo RecSys '14 → Artifact: the best-evidenced cheap implicit signal)
+    rides the SAME `POST /api/impressions` batched append: `{type:"dwell",
+    session_id, item_id, edition_date, url, dwell_ms, opened_at, ...}`. The
+    client records the open on any edition/panel item click (sessionStorage,
+    so the pair survives full navigations and hands off to ctrl-clicked
+    tabs) and settles one event per open on the tab's return — refocus
+    (visibilitychange), the next page load, or pagehide (session-end cap).
+    Bounds live in the domain and are re-enforced server-side:
+    `MIN_DWELL_MS` (2s — mis-click bounce is noise) ≤ `dwell_ms` ≤
+    `MAX_DWELL_MS` (30min — a lost tab, not reading); out-of-bounds opens
+    are dropped client-side and rejected server-side. Direct URL entry has
+    no origin open → no event. **SHADOW-MODE: capture only — no rubric,
+    recommender, or builder logic consumes dwell yet** (the `/admin`
+    read-stats audit display is the sole reader).
   - `GET /api/corrections?date=` — ledger count + latest value per item
     (verdict/reason/ev; legacy vote/grade rows remain readable).
   - `GET /api/edition?date=YYYY-MM-DD` — raw edition JSON (default: latest).

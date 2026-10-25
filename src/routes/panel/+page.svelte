@@ -1,10 +1,23 @@
 <script lang="ts">
 	import '../../app.css';
 	import { impression } from '$lib/impressions.js';
+	import { dwellOpen } from '$lib/dwell.js';
 	import type { PageData } from './$types.js';
 
 	let { data }: { data: PageData } = $props();
 	const d = $derived(data);
+
+	/* Dwell pairs with the item click: record the open; the return settles
+	   it into one dwell event (card t_ea679b5a, shadow-mode). */
+	function trackDwellOpen(item: { id: string; url: string; source: string }) {
+		dwellOpen({
+			item_id: item.id,
+			edition_date: d.date,
+			url: item.url,
+			item_url: item.url,
+			source: item.source
+		});
+	}
 
 	/* Folds print OPEN — same contract as the broadsheet (card t_dfe82b06). */
 	let foldStates: boolean[] = [];
@@ -56,7 +69,7 @@
 							}}
 						>
 							<span class="mk">{item.mark}</span>
-							<a href={item.url}>{item.title}</a>
+							<a href={item.url} onclick={() => trackDwellOpen(item)}>{item.title}</a>
 							<span class="src">{item.kind} · via {item.source}</span>
 							{#if item.brief}
 								<details class="fold">
