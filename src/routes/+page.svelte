@@ -5,42 +5,30 @@
 	let { data } = $props();
 	const ed = $derived(data.edition);
 
-	/* Inline votes: POST to /api/corrections (server-side JSONL ledger).
-	   Existing verdicts load from the server so they survive any device. */
-	let votes = $state({});
-	let voteError = $state('');
+	/* Grading-desk v2: the inline vote pass is gone — its editorial signal is a
+	   verdict at the grading desk. What the edition page records is implicit:
+	   click-throughs POST a v2 `click` event (keepalive so the POST survives
+	   the navigation). Existing state stays server-side, any device. */
+	const sessionId = crypto.randomUUID();
 
-	$effect(() => {
-		fetch(`/api/corrections?date=${ed.date}`)
-			.then((r) => r.json())
-			.then((d) => {
-				for (const [itemId, v] of Object.entries(d.last || {})) {
-					if (v.vote) votes[itemId] = v.vote;
-				}
-			})
-			.catch(() => {});
-	});
-
-	async function vote(item, value) {
-		const prev = votes[item.id];
-		votes[item.id] = value; // optimistic
-		voteError = '';
+	function trackClick(item) {
 		try {
-			const r = await fetch('/api/corrections', {
+			fetch('/api/corrections', {
 				method: 'POST',
 				headers: { 'content-type': 'application/json' },
+				keepalive: true,
 				body: JSON.stringify({
-					type: 'vote',
-					value,
+					type: 'click',
+					url: item.url,
+					session_id: sessionId,
 					item_id: item.id,
+					item_url: item.url,
+					source: item.source,
 					edition_date: ed.date
 				})
-			});
-			if (!r.ok) throw new Error((await r.json()).error || r.status);
-		} catch (err) {
-			if (prev === undefined) delete votes[item.id];
-			else votes[item.id] = prev;
-			voteError = 'vote failed to reach the ledger — ' + err.message;
+			}).catch(() => {});
+		} catch {
+			// click tracking must never break reading
 		}
 	}
 </script>
@@ -68,19 +56,13 @@
 		<div class="lead">
 			<div class="lead-main">
 				<div class="cap">Captured — you saved this yesterday, from {ed.lead.source}</div>
-				<h2><a href={ed.lead.url}>{ed.lead.title}</a></h2>
+				<h2><a href={ed.lead.url} onclick={() => trackClick(ed.lead)}>{ed.lead.title}</a></h2>
 				<p class="deck">{ed.lead.brief || ed.lead.title}</p>
-				<div class="vote screen-only">
-					<span class="vq">your call:</span>
-					<button class="vote-btn" class:voted={votes[ed.lead.id] === 'up'} onclick={() => vote(ed.lead, 'up')}>keep</button>
-					<span class="vsep">·</span>
-					<button class="vote-btn" class:voted={votes[ed.lead.id] === 'down'} onclick={() => vote(ed.lead, 'down')}>pass</button>
-				</div>
 			</div>
 			{#if ed.leadSide}
 				<div class="lead-side1 well">
 					<div class="cap">Also captured</div>
-					<h3><a href={ed.leadSide.url}>{ed.leadSide.title}</a></h3>
+					<h3><a href={ed.leadSide.url} onclick={() => trackClick(ed.leadSide)}>{ed.leadSide.title}</a></h3>
 					<p>{ed.leadSide.brief || ed.leadSide.title}</p>
 					<span class="mark"><b>Captured</b> · your save</span>
 				</div>
@@ -99,16 +81,10 @@
 				{#each section.items as item, i (item.id)}
 					{@const m = markFor(item)}
 					<div class="item {widthClass(section, i)}">
-						<h3><a href={item.url}>{item.title}</a></h3>
+						<h3><a href={item.url} onclick={() => trackClick(item)}>{item.title}</a></h3>
 						<p>{item.brief || item.title}</p>
 						<div class="markrow">
 							<span class="mark"><b>{m.mark} {m.label}</b>{#if item.captured_at} · captured {item.captured_at.slice(0, 10)}{/if}</span>
-							<span class="vote screen-only">
-								<span class="vq">your call:</span>
-								<button class="vote-btn" class:voted={votes[item.id] === 'up'} onclick={() => vote(item, 'up')}>keep</button>
-								<span class="vsep">·</span>
-								<button class="vote-btn" class:voted={votes[item.id] === 'down'} onclick={() => vote(item, 'down')}>pass</button>
-							</span>
 						</div>
 					</div>
 				{/each}
@@ -121,7 +97,7 @@
 		<span class="fl">❦</span>
 		<a class="grade-link" href="/grade">Grade this edition →</a>
 		<span class="fl">❦</span>
-		<span class="vote-note">{voteError || 'votes post to the private ledger on this server'}</span>
+		<span class="vote-note">clicks post to the private ledger on this server · editorial calls live at the grading desk</span>
 	</div>
 
 	<footer>— {ed.itemCount} items · edition {ed.date} · compiled by the 7 AM pipeline · read by a human —</footer>

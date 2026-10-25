@@ -2,7 +2,9 @@ import { error } from '@sveltejs/kit';
 import { loadEdition, IS_DEMO } from '$lib/server/store.js';
 import { shapeEdition, markFor } from '$lib/edition.js';
 
-/** The Grading Desk — one tap per item; grade events POST to /api/corrections. */
+/** The Grading Desk — one pass, one verdict per item (v2); verdict events POST
+ *  to /api/corrections with the full v2 envelope (url + source ride along so
+ *  the ledger is self-describing). */
 export async function load({ url }) {
 	const date = url.searchParams.get('date') || undefined;
 	const raw = await loadEdition(date);
@@ -14,7 +16,7 @@ export async function load({ url }) {
 	for (const s of ed.sections) {
 		for (const item of s.items) {
 			const m = markFor(item);
-			rows.push({ id: item.id, title: item.title, mark: `${m.mark} ${m.label}` });
+			rows.push({ id: item.id, title: item.title, url: item.url, source: item.source, mark: `${m.mark} ${m.label}` });
 		}
 	}
 	return { date: ed.date, dateLong: ed.dateLong, rows, itemCount: ed.itemCount, isDemo: IS_DEMO };

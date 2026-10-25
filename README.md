@@ -29,13 +29,31 @@ Python builder (source of truth)   →  edition JSON  →  SvelteKit app (render
     IM Fell English/SC + Pirata One, drop caps, dagger marks
     († deep read · ‡ brief · ❦ captured · ✳ suggested).
   - `/panel` — QuickStudy panel: the same data, condensed topic boxes.
-  - `/grade` — the grading desk: one tap per item (deep read / skim / capture).
+  - `/grade` — the grading desk: one pass, one verdict per item
+    (`deep-read | skim | drop`; a Readeck save is the capture signal, so there
+    is no `capture` grade and no second vote pass). Optional one-tap reason
+    chips on any verdict: `wrong-angle | already-read | wrong-source | dup |
+    low-quality`. A re-tap within the session SUPERSEDES the earlier event
+    (`supersedes: <event id>`) — it never contradicts.
   - `POST /api/corrections` — append one feedback event to the server-side
-    JSONL ledger (restart-safe: the file lives on the host volume). Body:
-    `{"type":"vote|grade","value":"up|down|deep-read|skim|capture",
-    "item_id":"...","edition_date":"YYYY-MM-DD"}` — `ts` is stamped by the
-    server. Later events win at analysis time; never dedupe.
-  - `GET /api/corrections?date=` — ledger count + latest value per item.
+    JSONL ledger (restart-safe: the file lives on the host volume). `ts` and
+    `id` are stamped by the server. Schema v2 events carry the shared
+    envelope `id, ts, schema_v:2, session_id, item_id, item_url, source,
+    edition_date` plus a type payload:
+    `verdict` (`value: deep-read|skim|drop`, optional `reason`, optional
+    `supersedes`, server-stamped `flip_ms` when it lands <2s after the
+    previous verdict in the same session — bursts are down-weighted at
+    analysis time, never last-write-wins), `click` (`url`; the edition page
+    posts these on click-through). Implicit signals (`read_progress`,
+    `star`, `capture`) are synced in by the pipeline; `skip` is derived
+    downstream and never stored. Legacy v1 bodies
+    (`{"type":"vote|grade","value":"up|down|deep-read|skim|capture",...}`)
+    are still accepted and stay readable via `schema_v`.
+    A v2 event whose `item_id` is absent from its `edition_date`'s edition is
+    rejected (400) and logged to `rejections.jsonl` — test/typo rows never
+    reach the ledger.
+  - `GET /api/corrections?date=` — ledger count + latest value per item
+    (verdict/reason/ev; legacy vote/grade rows remain readable).
   - `GET /api/edition?date=YYYY-MM-DD` — raw edition JSON (default: latest).
 - `scripts/import-votes.mjs` — migrate the old localStorage export from the
   retired Pages demo (export it from the demo grade page first):
@@ -81,6 +99,8 @@ $ME_DATA_DIR/
   edition.json                        # latest edition (no ?date= reads this)
   editions/<YYYY-MM-DD>/edition.json  # dated editions (?date=... reads these)
   corrections.jsonl                   # append-only feedback ledger (server-writable)
+  rejections.jsonl                    # write-time referential rejections
+  corrections-quarantine.jsonl        # quarantined rows; excluded from all reads
 ```
 
 On the dokku app, `ME_DATA_DIR=/data` with a host volume mount; the daily

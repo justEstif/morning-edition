@@ -6,16 +6,44 @@
        edition.json                    latest edition (written by the rsync step)
        editions/<YYYY-MM-DD>/edition.json
        corrections.jsonl               append-only feedback ledger
+       rejections.jsonl                write-time referential rejections
+       corrections-quarantine.jsonl    quarantined rows (excluded from all reads)
 
    The Python builder is the source of truth; nothing here ever writes edition
-   JSON. Corrections append one JSON object per line, canonical schema (locked
-   in parent card t_05ddeae1, card 2):
+   JSON. Corrections append one JSON object per line.
+
+   Ledger schema v2 (grading-desk v2, card t_9f03de41) — every event carries a
+   shared envelope; `schema_v` keeps v1 rows (below) readable forever:
+
+     {"id":"e-<rand>","ts":"ISO-8601","schema_v":2,"session_id":"...",
+      "item_id":"...","item_url":"...","source":"readeck|miniflux|hn",
+      "edition_date":"YYYY-MM-DD","type":"verdict|click|read_progress|star|capture",
+      ...type payload}
+
+     verdict:       value: deep-read|skim|drop; optional reason
+                    (wrong-angle|already-read|wrong-source|dup|low-quality);
+                    optional supersedes: <event id> (a re-tap replaces, never
+                    contradicts); optional flip_ms when the server saw this
+                    verdict land <2s after the previous one in the same session
+                    (bursts are down-weighted at analysis time, never
+                    last-write-wins)
+     click:         url (edition click-through)
+     read_progress: progress_pct, origin: readeck (synced by id)
+     star:          starred, origin: miniflux (synced)
+     capture:       origin: readeck (synced — a Readeck save IS the capture)
+
+   `skip` is derived downstream (presented >=2 editions, zero events) and is
+   never stored. v1 rows stay byte-identical:
      {"ts":"ISO-8601","type":"vote|grade","value":"up|down|deep-read|skim|capture",
       "item_id":"...","edition_date":"YYYY-MM-DD"}
-   Later ts wins at analysis time; never dedupe. Restart-safe: the file lives
-   on the host volume, not in the container. */
+
+   Referential validation: a v2 event whose item_id is absent from its
+   edition_date's edition is REJECTED (400) and logged to rejections.jsonl —
+   test/typo rows never reach the ledger. Restart-safe: files live on the host
+   volume, not in the container. */
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import { randomBytes } from 'node:crypto';
 
 export const DATA_DIR = process.env.ME_DATA_DIR
 	? path.resolve(process.env.ME_DATA_DIR)
@@ -23,6 +51,15 @@ export const DATA_DIR = process.env.ME_DATA_DIR
 export const IS_DEMO = !process.env.ME_DATA_DIR;
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+export const VERDICT_VALUES = ['deep-read', 'skim', 'drop'];
+export const REASONS = ['wrong-angle', 'already-read', 'wrong-source', 'dup', 'low-quality'];
+const VOTE_VALUES = ['up', 'down'];
+const GRADE_VALUES = ['deep-read', 'skim', 'capture'];
+
+/** Verdicts landing within this window after the previous one in the same
+ *  session+item are annotated flip_ms (burst → down-weight, not last-write-wins). */
+export const FLIP_MS = 2000;
 
 export function editionPath(date) {
 	if (date) {
@@ -68,53 +105,173 @@ export async function loadEdition(date) {
 	return null;
 }
 
-const VOTE_VALUES = ['up', 'down'];
-const GRADE_VALUES = ['deep-read', 'skim', 'capture'];
+function shortId() {
+	return 'e-' + randomBytes(8).toString('base64url');
+}
 
-/** Validate one feedback event; returns the canonical object or throws. */
+function bounded(v, max) {
+	return typeof v === 'string' && v.length > 0 && v.length <= max ? v : undefined;
+}
+
+/** Validate one feedback event (v1 or v2); returns the canonical object or throws. */
 export function validateCorrection(body) {
 	const type = body?.type;
-	const value = body?.value;
-	if (type !== 'vote' && type !== 'grade') throw new Error('type must be vote|grade');
-	if (type === 'vote' && !VOTE_VALUES.includes(value)) throw new Error('vote value must be up|down');
-	if (type === 'grade' && !GRADE_VALUES.includes(value)) throw new Error('grade value must be deep-read|skim|capture');
-	const itemId = body?.item_id;
-	if (typeof itemId !== 'string' || itemId.length === 0 || itemId.length > 200) throw new Error('item_id required');
+
+	// v1 legacy rows: byte-identical canonical schema, still accepted so the
+	// localStorage importer and any old client keep working.
+	if (type === 'vote' || type === 'grade') {
+		const value = body?.value;
+		if (type === 'vote' && !VOTE_VALUES.includes(value)) throw new Error('vote value must be up|down');
+		if (type === 'grade' && !GRADE_VALUES.includes(value)) throw new Error('grade value must be deep-read|skim|capture');
+		const itemId = body?.item_id;
+		if (typeof itemId !== 'string' || itemId.length === 0 || itemId.length > 200) throw new Error('item_id required');
+		const editionDate = body?.edition_date;
+		if (typeof editionDate !== 'string' || !DATE_RE.test(editionDate)) throw new Error('edition_date must be YYYY-MM-DD');
+		// Key order matches the canonical v1 schema exactly. ts is server-stamped.
+		return {
+			ts: new Date().toISOString(),
+			type,
+			value,
+			item_id: itemId,
+			edition_date: editionDate
+		};
+	}
+
+	// v2 events: shared envelope + type payload.
+	if (type !== 'verdict' && type !== 'click') {
+		throw new Error('type must be verdict|click (or legacy vote|grade)');
+	}
+	const sessionId = bounded(body.session_id, 100);
+	if (!sessionId) throw new Error('session_id required (v2 envelope)');
+	const itemId = bounded(body.item_id, 200);
+	if (!itemId) throw new Error('item_id required');
 	const editionDate = body?.edition_date;
 	if (typeof editionDate !== 'string' || !DATE_RE.test(editionDate)) throw new Error('edition_date must be YYYY-MM-DD');
-	// Key order matches the canonical schema exactly. ts is server-stamped.
-	return {
+
+	const ev = {
+		id: shortId(),
 		ts: new Date().toISOString(),
-		type,
-		value,
+		schema_v: 2,
+		session_id: sessionId,
 		item_id: itemId,
-		edition_date: editionDate
+		item_url: bounded(body.item_url, 2000),
+		source: bounded(body.source, 40),
+		edition_date: editionDate,
+		type
 	};
+
+	if (type === 'verdict') {
+		if (!VERDICT_VALUES.includes(body.value)) {
+			throw new Error('verdict value must be deep-read|skim|drop');
+		}
+		ev.value = body.value;
+		if (body.reason !== undefined && body.reason !== null) {
+			if (!REASONS.includes(body.reason)) {
+				throw new Error('reason must be one of: ' + REASONS.join('|'));
+			}
+			ev.reason = body.reason;
+		}
+		if (body.supersedes !== undefined && body.supersedes !== null) {
+			const sup = bounded(body.supersedes, 100);
+			if (!sup) throw new Error('supersedes must be an event id');
+			ev.supersedes = sup;
+		}
+	} else {
+		// click
+		const url = bounded(body.url, 2000);
+		if (!url) throw new Error('click requires url');
+		ev.url = url;
+	}
+
+	return ev;
 }
 
 export function correctionsPath() {
 	return path.join(DATA_DIR, 'corrections.jsonl');
 }
 
-/** Append one validated event to the JSONL ledger. */
+function rejectionsPath() {
+	return path.join(DATA_DIR, 'rejections.jsonl');
+}
+
+/** Referential validation: v2 events must reference an item that was actually
+ *  presented in their edition. Rejections are logged separately, never appended. */
+export async function referentiallyValid(ev) {
+	if (ev.schema_v !== 2) return true; // legacy rows predate edition-carried ids
+	const ed = await loadEdition(ev.edition_date);
+	if (!ed) return true; // no edition on disk yet — nothing to check against
+	const ids = new Set((Array.isArray(ed.items) ? ed.items : []).map((i) => i.id));
+	if (ids.has(ev.item_id)) return true;
+	await fs.mkdir(DATA_DIR, { recursive: true });
+	await fs.appendFile(
+		rejectionsPath(),
+		JSON.stringify({
+			ts: new Date().toISOString(),
+			reason: `item_id ${ev.item_id} absent from edition ${ev.edition_date}`,
+			session_id: ev.session_id,
+			type: ev.type,
+			value: ev.value,
+			url: ev.url
+		}) + '\n',
+		'utf8'
+	);
+	return false;
+}
+
+/** Append one validated event to the JSONL ledger, with write-time burst
+ *  detection: a verdict <2s after the previous verdict for the same
+ *  session+item+edition gets flip_ms so analysis can down-weight the burst
+ *  instead of blindly applying last-write-wins. */
 export async function appendCorrection(ev) {
+	if (ev.schema_v === 2 && ev.type === 'verdict') {
+		const prev = await lastVerdictInSession(ev.session_id, ev.item_id, ev.edition_date);
+		if (prev) {
+			const delta = Date.parse(ev.ts) - Date.parse(prev.ts);
+			if (delta >= 0 && delta < FLIP_MS) ev.flip_ms = delta;
+		}
+	}
 	await fs.mkdir(DATA_DIR, { recursive: true });
 	await fs.appendFile(correctionsPath(), JSON.stringify(ev) + '\n', 'utf8');
 }
 
-/** Read the ledger; optionally filter by edition_date.
- *  Returns { count, last: { "<item_id>": { vote?, grade? } } } — latest value
- *  per item+type wins (later ts wins; file order is append order). */
-export async function readCorrections(date) {
-	let raw = '';
+async function readRawLines() {
 	try {
-		raw = await fs.readFile(correctionsPath(), 'utf8');
+		return (await fs.readFile(correctionsPath(), 'utf8')).split('\n');
 	} catch {
-		return { count: 0, last: {} };
+		return [];
 	}
+}
+
+/** Most recent verdict event for a session+item+edition (file order = append order). */
+async function lastVerdictInSession(sessionId, itemId, editionDate) {
+	let last = null;
+	for (const line of await readRawLines()) {
+		if (!line.trim()) continue;
+		let ev;
+		try {
+			ev = JSON.parse(line);
+		} catch {
+			continue;
+		}
+		if (ev.schema_v === 2 && ev.type === 'verdict' && ev.session_id === sessionId &&
+			ev.item_id === itemId && ev.edition_date === editionDate) {
+			last = ev;
+		}
+	}
+	return last;
+}
+
+/** Read the ledger; optionally filter by edition_date.
+ *  Returns { count, last: { "<item_id>": { verdict?, reason?, vote?, grade?, ev? } } }
+ *  — latest event per item wins (later ts wins; file order is append order).
+ *  v2 verdict events map to verdict/reason/ev; legacy grade deep-read|skim map
+ *  to verdict; legacy vote stays vote; legacy capture stays grade (no v2
+ *  verdict — a Readeck save is the capture signal now). Quarantined rows live
+ *  in their own file and are never read here. */
+export async function readCorrections(date) {
 	const last = {};
 	let count = 0;
-	for (const line of raw.split('\n')) {
+	for (const line of await readRawLines()) {
 		if (!line.trim()) continue;
 		let ev;
 		try {
@@ -125,7 +282,17 @@ export async function readCorrections(date) {
 		if (date && ev.edition_date !== date) continue;
 		count++;
 		if (!last[ev.item_id]) last[ev.item_id] = {};
-		last[ev.item_id][ev.type] = ev.value;
+		const slot = last[ev.item_id];
+		if (ev.schema_v === 2 && ev.type === 'verdict') {
+			slot.verdict = ev.value;
+			slot.reason = ev.reason; // a superseding verdict without a reason clears it
+			if (ev.id) slot.ev = ev.id;
+		} else if (ev.type === 'grade') {
+			if (ev.value === 'capture') slot.grade = ev.value;
+			else slot.verdict = ev.value;
+		} else if (ev.type === 'vote') {
+			slot.vote = ev.value;
+		}
 	}
 	return { count, last };
 }
