@@ -15,6 +15,31 @@
       "rules": {
         "no-console": "off"
       }
+    },
+    {
+      "files": ["src/lib/domain/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": ["fs", "path", "crypto", "stream", "url"],
+            "patterns": [
+              {
+                "group": ["node:*"],
+                "message": "Hexagonal boundary: the domain core does zero I/O — no Node builtins."
+              },
+              {
+                "group": ["$app/**", "$env/**", "@sveltejs/**"],
+                "message": "Hexagonal boundary: the domain core imports no framework code."
+              },
+              {
+                "group": ["$lib/**", "!$lib/domain/**"],
+                "message": "Hexagonal boundary: deps point inward — the domain may only import $lib/domain/**."
+              }
+            ]
+          }
+        ]
+      }
     }
   ],
   "ignorePatterns": ["build", "node_modules", "data", ".svelte-kit", "**/*.svelte"]

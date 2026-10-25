@@ -153,11 +153,29 @@ npm run build        # vite build + adapter-node
 PORT=3000 npm start  # node build
 ```
 
-Code quality gate: `npm run check` = `oxlint . && oxfmt --check . && svelte-check`
+Code quality gate: `npm run check` =
+`oxlint . && oxfmt --check . && depcruise src --config .dependency-cruiser.cjs && svelte-check --tsconfig ./tsconfig.json`
 (oxlint recommended preset + no-unused-vars, eqeqeq, no-console in `src/` —
 pipeline scripts may console; `no-explicit-any` is warn during early adoption).
 `npm run format` = `oxfmt .` — run it before committing; svelte-check covers
 `.svelte` components, which oxlint does not deeply lint.
+
+Hexagonal architecture is machine-enforced, not convention:
+
+- `.oxlintrc.json` has a domain override (`src/lib/domain/**`) — `no-restricted-imports`
+  forbids Node builtins (`node:*`, bare `fs`/`path`/`crypto`/`stream`/`url`),
+  framework aliases (`$app/**`, `$env/**`, `@sveltejs/**`), and any `$lib/**`
+  import outside `$lib/domain/**`. The domain core does zero I/O and imports no
+  framework code; deps point inward only.
+- `.dependency-cruiser.cjs` adds two error-level rules to the gate:
+  `domain-zero-outward-deps` (domain depends on nothing outside itself) and
+  `adapters-not-importing-routes` (server/adapters code never imports route
+  modules — routes call inward, adapters never reach back out).
+
+When you add a NEW adapter folder (e.g. `src/lib/adapters/<name>/`), extend the
+`from.path` regex of `adapters-not-importing-routes` in
+`.dependency-cruiser.cjs` so it is covered — otherwise nothing enforces its
+boundary.
 
 Docker (what dokku builds): pinned `node:22-bookworm-slim`, `npm ci`,
 `npm run build`, `CMD ["node","build"]`.
