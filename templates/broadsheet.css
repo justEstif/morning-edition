@@ -79,6 +79,20 @@ footer { text-align:center; border-top:3px double var(--ink); margin-top:34px; p
 .grade-row .g-btns { white-space:nowrap; }
 #grade-count { font-style:normal; }
 
+/* ---- QuickStudy panel (panel.html): same data, condensed topic boxes ---- */
+.panel-cap { text-align:center; font-family:var(--sc); font-size:11px; letter-spacing:3px;
+  text-transform:uppercase; color:var(--mid); padding:22px 40px 0; }
+.panel-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:16px; margin-top:14px; }
+.topic-box { border:1px solid var(--ink); border-top:4px double var(--ink); padding:12px 16px 14px; }
+.topic-box h2 { font-family:var(--sc); font-weight:400; font-size:13px; letter-spacing:3px; text-transform:uppercase;
+  margin:0 0 8px; text-align:center; border-bottom:1px solid var(--rule); padding-bottom:6px; word-spacing:2px; }
+.topic-box ul { margin:0; padding:0; list-style:none; }
+.topic-box li { padding:7px 0; border-bottom:1px dotted var(--rule); font-size:13.5px; line-height:1.4; }
+.topic-box li:last-child { border-bottom:0; }
+.topic-box .mk { font-family:var(--sc); float:right; color:var(--mid); letter-spacing:2px; }
+.topic-box .src { display:block; font-style:italic; font-size:11px; color:var(--mid); margin-top:2px; }
+@media (max-width:760px) { .panel-grid { grid-template-columns:1fr; } }
+
 @media print {
   .frame { border:none; margin:0; max-width:none; padding:0; }
   .sheet { border:none; padding:0; }

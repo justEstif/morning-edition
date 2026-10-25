@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{TITLE}}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&amp;family=IM+Fell+English+SC&amp;family=Pirata+One&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body data-edition-date="{{EDITION_DATE}}">
+<div class="frame"><div class="sheet">
+  <div class="masthead">
+    <div class="over">Your Personal Morning Edition</div>
+    <h1><a href="index.html">The Morning Edition</a></h1>
+    <div class="under">the stories worth your attention today, compiled at 7:00 AM</div>
+  </div>
+  <div class="rail">
+    <span>{{MASTHEAD_DATE}}</span><span class="fl">&#10086;</span>
+    <span>&#8224; deep read &#8225; brief &#10086; captured &#10033; suggested</span><span class="fl">&#10086;</span>
+    <span>demo edition &mdash; mock data only</span>
+  </div>
+
+  <div class="panel-cap">QuickStudy panel &mdash; the same {{ITEM_COUNT}} stories, condensed for a fast scan</div>
+  <div class="panel-grid">
+
+{{PANEL_SECTIONS}}
+
+  </div>
+  <div class="toolbar screen-only">
+    <a class="grade-link" href="index.html">&larr; Broadsheet</a>
+    <span class="fl">&#10086;</span>
+    <a class="grade-link" href="grade.html">Grade this edition &rarr;</a>
+  </div>
+  <footer>&mdash; {{ITEM_COUNT}} items &middot; edition {{EDITION_DATE}} &middot; compiled by the 7 AM pipeline &middot; demo edition, mock data only &mdash;</footer>
+</div></div>
+</body>
+</html>

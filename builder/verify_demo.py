@@ -84,6 +84,20 @@ gcolors = sorted(set(re.findall(r'#[0-9a-fA-F]{3,6}\b|rgba?\([^)]*\)', gstyle)))
 check("grade page palette only", gcolors == [], str(gcolors))
 check("grade hosts clean", set(re.findall(r'href="(https?://[^/"]+)', grade)) <= {"https://example.com", "https://fonts.googleapis.com", "https://fonts.gstatic.com"})
 
+# --- Card 1b: QuickStudy panel (panel.html) — same data model, second render ---
+from html import escape as esc
+KIND_MARKS = {"deep-read": "&#8224;", "brief": "&#8225;", "captured": "&#10086;"}
+panel = (REPO / "docs" / "panel.html").read_text(encoding="utf-8")
+check("panel built", "QuickStudy panel" in panel and "topic-box" in panel)
+check("panel lists every item", all(esc(i["title"]) in panel for i in data["items"]))
+check("panel marks every item", all(KIND_MARKS[i["kind"]] in panel for i in data["items"] if i["section"] != "might-like") and "&#10033;" in panel)
+check("broad↔panel toggle", 'href="panel.html"' in docs and 'href="index.html"' in panel)
+check("panel hosts clean", set(re.findall(r'href="(https?://[^/"]+)', panel)) <= {"https://example.com", "https://fonts.googleapis.com", "https://fonts.gstatic.com"})
+r2 = subprocess.run([sys.executable, str(REPO / "builder" / "build_edition.py"),
+                     "/tmp/me-empty.json", "/tmp/me-empty-out"], check=True, capture_output=True)
+panel_empty = Path("/tmp/me-empty-out/panel.html").read_text(encoding="utf-8")
+check("panel omits empty sections", "Rust" not in panel_empty and "Might Like" in panel_empty)
+
 fails = [c for c in checks if not c[1]]
 
 print(f"\n{len(checks) - len(fails)}/{len(checks)} checks passed")

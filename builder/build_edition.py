@@ -4,9 +4,10 @@
 Usage:
     python3 builder/build_edition.py <edition.json> <output_dir>
 
-Reads templates/broadsheet.html and templates/broadsheet.css (found relative to
-the repository root) and writes <output_dir>/index.html, <output_dir>/grade.html
-plus assets/style.css and assets/feedback.js.
+Reads templates/broadsheet.html, templates/panel.html and templates/broadsheet.css
+(found relative to the repository root) and writes <output_dir>/index.html,
+<output_dir>/panel.html, <output_dir>/grade.html plus assets/style.css and
+assets/feedback.js.
 The output is a pure function of the edition JSON and the templates — no
 timestamps, no randomness — so rebuilding the same edition is deterministic.
 
@@ -193,6 +194,33 @@ def render_grade_rows(items):
     return "\n".join(chunks)
 
 
+def render_panel_boxes(items):
+    """QuickStudy-panel topic boxes: one box per non-empty section, captured
+    first. Same edition data model as the broadsheet — condensed to a scan
+    list (title, dagger mark, source) per item."""
+    sections = group_items(items)
+    order = (["captured"] + SECTION_ORDER[1:]) if sections["captured"] else SECTION_ORDER[1:]
+    boxes = []
+    for key in order:
+        if not sections[key]:
+            continue
+        lis = []
+        for it in sections[key]:
+            mark = "&#10033;" if it["section"] == "might-like" else KIND_MARKS[it["kind"]]
+            lis.append(
+                f'      <li><a href="{esc(it["url"])}"><span class="t">{esc(it["title"])}</span></a>'
+                f'<span class="mk">{mark}</span>'
+                f'<span class="src">{KIND_LABELS[it["kind"]]} &middot; via {esc(it["source"])}</span></li>'
+            )
+        boxes.append(
+            f'  <div class="topic-box">\n'
+            f'    <h2>{SECTION_TITLES[key]}</h2>\n'
+            f'    <ul>\n' + "\n".join(lis) + '\n    </ul>\n'
+            f'  </div>'
+        )
+    return "\n".join(boxes)
+
+
 def build(edition_path, output_dir):
     edition = json.loads(Path(edition_path).read_text(encoding="utf-8"))
     edition_date = edition.get("edition_date")
@@ -231,6 +259,15 @@ def build(edition_path, output_dir):
         .replace("{{GRADE_ROWS}}", render_grade_rows(items))
     )
 
+    panel_template = (TEMPLATES_DIR / "panel.html").read_text(encoding="utf-8")
+    panel_page = (
+        panel_template.replace("{{TITLE}}", f"The Morning Edition &mdash; QuickStudy panel &mdash; {long_date(edition_date)}")
+        .replace("{{MASTHEAD_DATE}}", esc(long_date(edition_date)))
+        .replace("{{EDITION_DATE}}", esc(edition_date))
+        .replace("{{ITEM_COUNT}}", str(len(items)))
+        .replace("{{PANEL_SECTIONS}}", render_panel_boxes(items))
+    )
+
     output_dir = Path(output_dir)
     assets = output_dir / "assets"
     assets.mkdir(parents=True, exist_ok=True)
@@ -238,8 +275,10 @@ def build(edition_path, output_dir):
     shutil.copyfile(TEMPLATES_DIR / "feedback.js", assets / "feedback.js")
     (output_dir / "index.html").write_text(page, encoding="utf-8")
     (output_dir / "grade.html").write_text(grade_page, encoding="utf-8")
+    (output_dir / "panel.html").write_text(panel_page, encoding="utf-8")
     print(f"wrote {output_dir / 'index.html'} ({len(items)} items, "
-          f"{sum(1 for k in order if sections.get(k)) + (1 if lead_html else 0)} sections incl. lead)")
+          f"{sum(1 for k in order if sections.get(k)) + (1 if lead_html else 0)} sections incl. lead; "
+          f"also grade.html, panel.html)")
 
 
 def main(argv):

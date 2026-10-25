@@ -1,0 +1,25 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Acceptance checks (verify_demo.py)
+        run: python3 builder/verify_demo.py
+      - name: Rebuild site from data
+        run: python3 builder/build_edition.py data/demo/edition-demo.json docs
+      - name: Verify committed docs/ is up to date
+        run: |
+          if ! git diff --exit-code -- docs; then
+            echo "::error::docs/ is stale — run 'python3 builder/build_edition.py data/demo/edition-demo.json docs' and commit the result"
+            exit 1
+          fi

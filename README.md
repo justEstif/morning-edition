@@ -1,9 +1,10 @@
 # The Morning Edition — builder
 
 Turns an edition JSON into a static Victorian-broadsheet web page (pure black
-& white, print-ready, no JS frameworks) plus a grading desk page. Outputs:
-`<out>/index.html`, `<out>/grade.html`, `<out>/assets/style.css`,
-`<out>/assets/feedback.js`.
+& white, print-ready, no JS frameworks) plus a QuickStudy panel page and a
+grading desk page — all three renders from the same edition JSON. Outputs:
+`<out>/index.html`, `<out>/panel.html`, `<out>/grade.html`,
+`<out>/assets/style.css`, `<out>/assets/feedback.js`.
 
 ## Build
 
@@ -49,6 +50,14 @@ lead feature; remaining captures fill the pinned Captured section. Marks are
 typographic only: `†` deep read, `‡` brief, `❦` captured, `✳` suggested
 (might-like items). `shadow_score` is engine metadata and is never rendered;
 placement is never driven by it.
+
+## The QuickStudy panel
+
+`panel.html` is the second render of the same edition data: the identical
+sections and dagger marks, condensed into bordered topic boxes for a fast
+scan. The broadsheet's toolbar links to it (`QuickStudy panel →`) and the
+panel links back (`← Broadsheet`) — one data model, two layouts, both built
+by the same builder run.
 
 ## Feedback loop (v1, local-only)
 
