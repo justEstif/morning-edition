@@ -89,7 +89,7 @@ footer { grid-column: 1 / -1; text-align:center; border-top:3px double var(--ink
 .grade-link:hover { color:var(--ink); }
 
 /* Grade page rows */
-.grade-row { display:flex; justify-content:space-between; align-items:baseline; gap:18px;
+.grade-row { grid-column: 1 / -1; display:flex; justify-content:space-between; align-items:baseline; gap:18px;
   padding:13px 4px; border-bottom:1px solid var(--rule); }
 .grade-row .g-body { flex:1; }
 .grade-row h3 { font-family:var(--sc); font-weight:400; font-size:17px; line-height:1.25;
@@ -120,6 +120,15 @@ footer { grid-column: 1 / -1; text-align:center; border-top:3px double var(--ink
   .item p::first-letter { font-size:inherit; float:none; padding:0; }
 }
 @media (max-width:760px) { .panel-grid { grid-template-columns:1fr; } }
+
+/* Grade page on phones: title above, verdict buttons on their own row */
+@media (max-width: 640px) {
+  .grade-row { flex-direction:column; align-items:stretch; gap:7px; padding:14px 0; }
+  .grade-row .g-btns { display:flex; align-items:baseline; gap:2px 16px; white-space:normal; flex-wrap:wrap; }
+  .grade-row .vsep { display:none; }
+  .grade-btn { font-size:13px; padding:7px 10px; } /* real tap targets */
+  .toolbar { flex-direction:column; align-items:center; gap:5px; }
+}
 
 @media print {
   body { font-size:12pt; } .page { padding:0; }
