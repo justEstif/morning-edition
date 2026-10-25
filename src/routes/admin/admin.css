@@ -1,0 +1,166 @@
+/* /admin — the back office. 001e paper rules: B&W, typographic controls,
+   no chrome; every direct child of .page carries an explicit grid-column
+   (the shared section/masthead/rail rules in app.css already do). */
+.notice {
+  grid-column: 1 / -1;
+  margin: 18px 0 0;
+  font-style: italic;
+  font-size: 14px;
+}
+.notice.err {
+  color: var(--ink);
+}
+
+/* health boxes ride the page's 12 tracks: 4 + 4 + 4 */
+.statgrid {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 14px;
+}
+.topic-box .big {
+  font-family: var(--sc);
+  font-size: 21px;
+  margin: 6px 0 2px;
+  text-align: center;
+}
+.topic-box .big.warn {
+  text-decoration: underline;
+}
+
+.admin-col {
+  grid-column: 1 / -1;
+  margin-top: 12px;
+}
+.sub-h {
+  font-family: var(--sc);
+  font-weight: 400;
+  font-size: 13px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin: 22px 0 6px;
+}
+.fine {
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 4px 0;
+  max-width: 100ch;
+}
+.fine.italic {
+  font-style: italic;
+  color: var(--mid);
+}
+.fine code {
+  font-size: 12px;
+  border-bottom: 1px dotted var(--rule);
+}
+
+/* restore form: typographic controls only */
+.restore {
+  display: flex;
+  align-items: baseline;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.restore select {
+  font-family: var(--sc);
+  font-size: 14px;
+  letter-spacing: 1px;
+  color: var(--ink);
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--ink);
+  padding: 3px 2px;
+  outline: none;
+}
+.confirm {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  font-style: italic;
+  font-size: 13px;
+  color: var(--mid);
+  cursor: pointer;
+}
+.tool-btn.strong {
+  color: var(--ink);
+  border-top: 1px solid var(--ink);
+  border-bottom: 1px solid var(--ink);
+  padding: 4px 10px;
+}
+
+/* ledger rows: one rule per row, small-caps type column */
+.ledger {
+  margin-top: 6px;
+}
+.lrow {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  padding: 7px 2px;
+  border-bottom: 1px solid var(--rule);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.lrow.head {
+  font-family: var(--sc);
+  font-size: 10.5px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--mid);
+  border-bottom: 2px solid var(--ink);
+}
+.lrow.rej .ldetail {
+  font-style: italic;
+}
+.lwhen {
+  font-family: var(--sc);
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: var(--mid);
+  white-space: nowrap;
+}
+.ltype {
+  font-family: var(--sc);
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.lrow.head .ltype,
+.lrow.head .litem {
+  letter-spacing: 2px;
+}
+.litem {
+  font-weight: 400;
+}
+.led {
+  font-style: italic;
+  color: var(--mid);
+  white-space: nowrap;
+}
+.ldetail {
+  flex: 1;
+  color: var(--mid);
+  overflow-wrap: anywhere;
+}
+.lacts {
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.inline {
+  display: inline;
+}
+
+@media (max-width: 900px) {
+  .statgrid {
+    grid-template-columns: 1fr;
+  }
+  .lrow {
+    flex-wrap: wrap;
+  }
+}
