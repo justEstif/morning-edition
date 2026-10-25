@@ -44,5 +44,5 @@
 	title={dark ? 'switch to the day edition' : 'switch to the night edition'}
 	onclick={flip}
 >
-	<span class="fl" aria-hidden="true">{dark ? '✶&#xFE0E;' : '☾'}</span>&nbsp;{dark ? 'day' : 'night'}
+	<span class="fl" aria-hidden="true">{dark ? '\u2736\uFE0E' : '\u263E'}</span>&nbsp;{dark ? 'day' : 'night'}
 </button>
