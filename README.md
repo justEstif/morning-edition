@@ -127,6 +127,12 @@ npm run build        # vite build + adapter-node
 PORT=3000 npm start  # node build
 ```
 
+Code quality gate: `npm run check` = `oxlint . && oxfmt --check . && svelte-check`
+(oxlint recommended preset + no-unused-vars, eqeqeq, no-console in `src/` —
+pipeline scripts may console; `no-explicit-any` is warn during early adoption).
+`npm run format` = `oxfmt .` — run it before committing; svelte-check covers
+`.svelte` components, which oxlint does not deeply lint.
+
 Docker (what dokku builds): pinned `node:22-bookworm-slim`, `npm ci`,
 `npm run build`, `CMD ["node","build"]`.
 
