@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   backfillFromEditions,
+  baseTitle,
+  compactRegistry,
   continuationTitle,
   matchEntry,
   MAX_EDITION_APPEARANCES,
@@ -238,5 +240,132 @@ describe("backfillFromEditions — cross-day memory from the archive", () => {
     expect(reg).toHaveLength(1);
     expect(reg[0].appearances).toEqual([D1, D2]);
     expect(reg[0].angles.map((a) => a.source)).toEqual(["miniflux", "hn"]);
+  });
+});
+
+describe("compactRegistry — backfill compaction (card t_00a5273f)", () => {
+  it("baseTitle strips the continuation presentation suffix", () => {
+    expect(baseTitle("Toy kernels (updated angle: hn)")).toBe("Toy kernels");
+    expect(baseTitle("Toy kernels")).toBe("Toy kernels");
+    expect(baseTitle("  Toy kernels (updated angle: hn) (updated angle: redeck) ")).toBe(
+      "Toy kernels",
+    );
+  });
+
+  it("the replay's known miss: a day-2 capture under a different URL + continuation-suffixed title re-seeds as a fresh entry — compaction merges it back", () => {
+    // short base title: the 3 suffix tokens sink raw similarity below the
+    // threshold ({toy,kernels} vs {toy,kernels,updated,angle,hn} = 2/5),
+    // exactly the archived-presentation case the coarse seed re-seeds
+    const base = "Toy kernels";
+    const days = [
+      { edition_date: D1, items: [{ url: cand().url, title: base, source: "miniflux" }] },
+      {
+        edition_date: D2,
+        items: [
+          // the live commit path strips this suffix before re-planning; the
+          // coarse seed doesn't — so the replay misses the title fallback
+          { url: "https://news.example/agg", title: continuationTitle(base, "hn"), source: "hn" },
+        ],
+      },
+    ];
+    const seed = backfillFromEditions(days);
+    expect(seed).toHaveLength(2); // the inflation the card flags
+
+    const compacted = compactRegistry(seed);
+    expect(compacted).toHaveLength(1);
+    const e = compacted[0];
+    expect(e.title).toBe(base); // earliest entry keeps the identity
+    expect(e.first_seen).toBe(D1);
+    expect(e.last_seen).toBe(D2);
+    expect(e.appearances).toEqual([D1, D2]);
+    expect(e.angles.map((a) => a.source)).toEqual(["miniflux", "hn"]);
+  });
+
+  it("same canonical URL under different titles merges, earliest identity wins", () => {
+    const compacted = compactRegistry([
+      entry({ story_id: storyIdFor(cand().url, cand().title), first_seen: D1, last_seen: D1 }),
+      entry({
+        story_id: "story-other00",
+        first_seen: D2,
+        last_seen: D2,
+        title: "A completely different headline for it",
+        appearances: [D2],
+        angles: [{ source: "hn", url: "https://news.example/agg", edition_date: D2 }],
+      }),
+    ]);
+    expect(compacted).toHaveLength(1);
+    expect(compacted[0].title).toBe(entry().title);
+    expect(compacted[0].story_id).toBe(storyIdFor(cand().url, cand().title));
+    expect(compacted[0].appearances).toEqual([D1, D2]);
+    expect(compacted[0].angles.map((a) => a.source)).toEqual(["miniflux", "hn"]);
+  });
+
+  it("engagement summaries sum; negative_signal is recomputed from merged facts", () => {
+    const a = entry({
+      appearances: [D1],
+      engagement_summary: { signals: 1, clicks: 1, verdicts: 0, deep_reads: 0, dwell_ms: 500 },
+    });
+    const b = entry({
+      first_seen: D2,
+      last_seen: D2,
+      appearances: [D2, "2026-10-26"],
+      angles: [{ source: "hn", url: "https://news.example/agg", edition_date: D2 }],
+      negative_signal: true, // stale derivation on the pre-merge entry
+    });
+    const compacted = compactRegistry([a, b]);
+    expect(compacted).toHaveLength(1);
+    expect(compacted[0].engagement_summary).toEqual({
+      signals: 1,
+      clicks: 1,
+      verdicts: 0,
+      deep_reads: 0,
+      dwell_ms: 500,
+    });
+    expect(compacted[0].negative_signal).toBe(false); // 3 appearances but engaged
+  });
+
+  it("distinct stories stay separate — no over-merge below the threshold", () => {
+    const compacted = compactRegistry([
+      entry(),
+      entry({
+        story_id: "story-other00",
+        canonical_url: "https://example.com/sourdough",
+        title: "Sourdough starter journal, week 12",
+        angles: [{ source: "miniflux", url: "https://example.com/sourdough", edition_date: D1 }],
+      }),
+    ]);
+    expect(compacted).toHaveLength(2);
+  });
+
+  it("invariant: no duplicate canonical_urls after compaction; idempotent", () => {
+    const seed = backfillFromEditions([
+      {
+        edition_date: D1,
+        items: [
+          { url: "https://example.com/a", title: "One shared headline here", source: "miniflux" },
+          { url: "https://example.com/b", title: "An unrelated other story", source: "hn" },
+        ],
+      },
+      {
+        edition_date: D2,
+        items: [
+          { url: "https://mirror.example/x", title: "One shared headline here", source: "hn" },
+          {
+            url: "https://example.com/a", // same URL, suffixed presentation
+            title: "One shared headline here (updated angle: hn)",
+            source: "readeck",
+          },
+        ],
+      },
+    ]);
+    const once = compactRegistry(seed);
+    const urls = once.map((e) => e.canonical_url);
+    expect(new Set(urls).size).toBe(urls.length);
+    expect(compactRegistry(once)).toEqual(once);
+    // both captures of story A collapsed into one entry with both angles
+    const a = once.find((e) => e.canonical_url === "https://example.com/a");
+    expect(a?.appearances).toEqual([D1, D2]);
+    expect(a?.angles.map((x) => x.source)).toEqual(["miniflux", "hn"]);
+    expect(once).toHaveLength(2); // A merged; B untouched
   });
 });

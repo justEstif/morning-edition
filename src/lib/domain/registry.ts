@@ -467,9 +467,30 @@ export interface BackfillEdition {
   items: Array<{ url?: string; title?: string; source?: string }>;
 }
 
+/** Presentation-suffix stripper: archived items carry continuation titles
+ *  ("Title (updated angle: hn)"), but a registry entry's title is the
+ *  base title — the live commit path strips the suffix before re-planning
+ *  (make_edition.ts), so backfill compaction matches on the same form. */
+export function baseTitle(title: string): string {
+  let t = title.trim();
+  // loop: defensive against stacked suffixes from older presentations
+  for (let prev = ""; prev !== t;) {
+    prev = t;
+    t = t.replace(/ \(updated angle: [^)]*\)$/i, "").trim();
+  }
+  return t;
+}
+
 /** Seed a fresh registry from past editions, replaying planAppearances day
  *  by day — the registry's cross-day memory reconstructed from the archive.
- *  Days must be passed in ascending date order. */
+ *  Days must be passed in ascending date order.
+ *
+ *  The replay is a COARSE SEED: it folds day-by-day, so a later day's
+ *  capture of an earlier story misses the merge when it arrives under a
+ *  different URL AND a dissimilar presentation title (notably archived
+ *  continuation titles, whose "(updated angle: …)" suffix defeats the
+ *  title fallback). Callers run compactRegistry on the result — the
+ *  documented compaction step that restores one-entry-per-canonical-story. */
 export function backfillFromEditions(days: BackfillEdition[]): StoryRegistry {
   let entries: StoryRegistry = [];
   for (const day of days) {
@@ -483,4 +504,69 @@ export function backfillFromEditions(days: BackfillEdition[]): StoryRegistry {
     entries = planAppearances(entries, cands, day.edition_date).entries;
   }
   return entries;
+}
+
+/* ----- backfill compaction (pure) ----- */
+
+/** Two entries share canonical identity: same canonical URL, or base-title
+ *  similarity >= TITLE_SIMILARITY_THRESHOLD (suffix-stripped, so archived
+ *  continuation titles match their story's base-title entry). */
+function sameIdentity(a: RegistryEntry, b: RegistryEntry): boolean {
+  if (a.canonical_url && a.canonical_url === b.canonical_url) return true;
+  const at = baseTitle(a.title);
+  const bt = baseTitle(b.title);
+  return at.length > 0 && bt.length > 0 && titleSimilarity(at, bt) >= TITLE_SIMILARITY_THRESHOLD;
+}
+
+function mergeEntries(keep: RegistryEntry, drop: RegistryEntry): RegistryEntry {
+  const appearances = [...new Set([...keep.appearances, ...drop.appearances])].sort();
+  const angles: RegistryAngle[] = [];
+  const seenAngle = new Set<string>();
+  for (const a of [...keep.angles, ...drop.angles]) {
+    const key = `${a.source}\u0000${a.edition_date}`;
+    if (seenAngle.has(key)) continue;
+    seenAngle.add(key);
+    angles.push(a);
+  }
+  angles.sort((a, b) =>
+    a.edition_date < b.edition_date ? -1 : a.edition_date > b.edition_date ? 1 : 0,
+  );
+  const engagement_summary: EngagementSummary = {
+    signals: keep.engagement_summary.signals + drop.engagement_summary.signals,
+    clicks: keep.engagement_summary.clicks + drop.engagement_summary.clicks,
+    verdicts: keep.engagement_summary.verdicts + drop.engagement_summary.verdicts,
+    deep_reads: keep.engagement_summary.deep_reads + drop.engagement_summary.deep_reads,
+    dwell_ms: keep.engagement_summary.dwell_ms + drop.engagement_summary.dwell_ms,
+  };
+  return {
+    // earliest entry owns the canonical identity (first_seen title/URL/id)
+    ...keep,
+    last_seen: keep.last_seen > drop.last_seen ? keep.last_seen : drop.last_seen,
+    appearances,
+    angles,
+    engagement_summary,
+    negative_signal:
+      appearances.length >= NEGATIVE_SIGNAL_APPEARANCES && engagement_summary.signals === 0,
+  };
+}
+
+/** Merge every set of entries sharing canonical identity (canonical URL or
+ *  suffix-stripped title similarity) into ONE entry — the compaction pass
+ *  over a backfilled (coarse-seed) registry. The earliest entry keeps its
+ *  story_id/canonical_url/title/first_seen; appearances union (sorted,
+ *  deduped); angles union per (source, edition_date), chronological;
+ *  engagement summaries SUM (rollupEngagement recomputes from the ledger at
+ *  build time, so this stays a faithful seed either way); negative_signal
+ *  is recomputed from the merged facts. Stable and idempotent: after one
+ *  pass no two entries share identity, so a second pass changes nothing.
+ *  The live fold path never calls this — compaction exists for the
+ *  crash-recovery backfill only (card t_00a5273f). */
+export function compactRegistry(registry: StoryRegistry): StoryRegistry {
+  const clusters: RegistryEntry[][] = [];
+  for (const e of registry) {
+    const home = clusters.find((c) => c.some((m) => sameIdentity(m, e)));
+    if (home) home.push(e);
+    else clusters.push([e]);
+  }
+  return clusters.map((c) => c.reduce((keep, drop) => mergeEntries(keep, drop)));
 }

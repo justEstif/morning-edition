@@ -31,6 +31,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   backfillFromEditions,
+  compactRegistry,
   parseRegistry,
   type EngagementEvent,
   type StoryRegistry,
@@ -74,7 +75,16 @@ export const registryStore: StoryRegistryStore = {
  *  The archive is the BUILDER'S OWN output — read with the same trust
  *  seenBefore had (light field checks, no parseEdition: old editions must
  *  keep backfilling even after the serving schema grows new required
- *  fields). Returns [registry, backfilled]. */
+ *  fields). Returns [registry, backfilled].
+ *
+ *  Backfill is a COARSE SEED (card t_00a5273f): the day-by-day replay
+ *  folds naively, so captures that re-appear under a different URL and a
+ *  dissimilar presentation title (archived continuation titles included)
+ *  re-seed as separate entries. The compactRegistry pass after the replay
+ *  is the documented compaction step that merges entries sharing canonical
+ *  identity (URL or suffix-stripped title similarity), restoring
+ *  one-entry-per-canonical-story before the registry goes back to work.
+ *  The live fold path never compacts. */
 export async function loadOrBackfill(editionsDir: string): Promise<[StoryRegistry, boolean]> {
   const loaded = await registryStore.load();
   if (loaded.length > 0) return [loaded, false];
@@ -99,7 +109,7 @@ export async function loadOrBackfill(editionsDir: string): Promise<[StoryRegistr
       continue; // a corrupt archived edition never breaks the backfill
     }
   }
-  return [backfillFromEditions(backfill), backfill.length > 0];
+  return [compactRegistry(backfillFromEditions(backfill)), backfill.length > 0];
 }
 
 /** The ledger on contabo, as minimal engagement events. GET-only (ssh cat).
