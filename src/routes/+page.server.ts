@@ -1,10 +1,11 @@
 import { error } from '@sveltejs/kit';
 import { loadEdition, IS_DEMO } from '$lib/server/store.js';
 import { shapeEdition } from '$lib/edition.js';
+import type { PageServerLoad } from './$types.js';
 
 export const ssr = true;
 
-export async function load({ url }) {
+export const load: PageServerLoad = async ({ url }) => {
 	const date = url.searchParams.get('date') || undefined;
 	const raw = await loadEdition(date);
 	if (!raw) {

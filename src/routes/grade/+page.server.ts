@@ -1,11 +1,12 @@
 import { error } from '@sveltejs/kit';
 import { loadEdition, IS_DEMO } from '$lib/server/store.js';
 import { shapeEdition, markFor } from '$lib/edition.js';
+import type { PageServerLoad } from './$types.js';
 
 /** The Grading Desk — one pass, one verdict per item (v2); verdict events POST
  *  to /api/corrections with the full v2 envelope (url + source ride along so
  *  the ledger is self-describing). */
-export async function load({ url }) {
+export const load: PageServerLoad = async ({ url }) => {
 	const date = url.searchParams.get('date') || undefined;
 	const raw = await loadEdition(date);
 	if (!raw) {

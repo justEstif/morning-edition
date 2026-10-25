@@ -1,42 +1,49 @@
-<script>
+<script lang="ts">
 	import '../../app.css';
+	import type { CorrectionsSummary, Reason, Verdict, VerdictPostBody } from '$lib/types.js';
+	import type { PageData } from './$types.js';
 
-	let { data } = $props();
+	let { data }: { data: PageData } = $props();
 	const d = $derived(data);
+
+	/** One grading-desk row as produced by the page's server load. */
+	type GradeRow = PageData['rows'][number];
 
 	/* Grading desk v2 — one pass, one verdict (deep-read | skim | drop). A
 	   Readeck save is the capture signal, so `capture` is gone; the separate
 	   vote pass is gone (its editorial signal lives in the optional reason
 	   chips). Every POST carries the v2 envelope; re-taps within this session
 	   SUPERSEDE the earlier event instead of contradicting it. */
-	const VERDICTS = ['deep-read', 'skim', 'drop'];
-	const REASONS = ['wrong-angle', 'already-read', 'wrong-source', 'dup', 'low-quality'];
+	const VERDICTS: readonly Verdict[] = ['deep-read', 'skim', 'drop'];
+	const REASONS: Reason[] = ['wrong-angle', 'already-read', 'wrong-source', 'dup', 'low-quality'];
 
 	const sessionId = crypto.randomUUID();
-	let verdicts = $state({}); // item_id -> { value, reason? }
-	let lastEv = $state({}); // item_id -> latest event id this client knows of
+	let verdicts = $state<Record<string, { value: Verdict; reason?: Reason }>>({}); // item_id -> { value, reason? }
+	let lastEv = $state<Record<string, string>>({}); // item_id -> latest event id this client knows of
 	let sessionCount = $state(0);
 	let gradeError = $state('');
 
 	$effect(() => {
 		fetch(`/api/corrections?date=${d.date}`)
 			.then((r) => r.json())
-			.then((res) => {
+			.then((res: CorrectionsSummary) => {
 				for (const [itemId, v] of Object.entries(res.last || {})) {
-					if (v.verdict) verdicts[itemId] = { value: v.verdict, reason: v.reason || undefined };
+					// slot fields are loose (legacy v1 rows ride in the same map);
+					// verdict values here came from validated v2 events
+					if (v.verdict) verdicts[itemId] = { value: v.verdict as Verdict, reason: (v.reason || undefined) as Reason | undefined };
 					if (v.ev) lastEv[itemId] = v.ev;
 				}
 			})
 			.catch(() => {});
 	});
 
-	async function post(row, value, reason) {
+	async function post(row: GradeRow, value: Verdict, reason?: Reason) {
 		const prev = verdicts[row.id];
 		const prevEv = lastEv[row.id];
 		verdicts[row.id] = { value, reason }; // optimistic
 		gradeError = '';
 		try {
-			const body = {
+			const body: VerdictPostBody = {
 				type: 'verdict',
 				value,
 				session_id: sessionId,
@@ -59,15 +66,15 @@
 		} catch (err) {
 			if (prev === undefined) delete verdicts[row.id];
 			else verdicts[row.id] = prev;
-			gradeError = 'verdict failed to reach the ledger — ' + err.message;
+			gradeError = 'verdict failed to reach the ledger — ' + (err instanceof Error ? err.message : String(err));
 		}
 	}
 
-	function verdict(row, value) {
+	function verdict(row: GradeRow, value: Verdict) {
 		post(row, value, undefined);
 	}
 
-	function reason(row, chip) {
+	function reason(row: GradeRow, chip: Reason) {
 		const cur = verdicts[row.id];
 		// re-tapping the picked chip clears it (supersede, never contradict)
 		post(row, cur.value, cur.reason === chip ? undefined : chip);

@@ -1,8 +1,10 @@
-<script>
+<script lang="ts">
 	import '../app.css';
 	import { markFor, widthClass } from '$lib/edition.js';
+	import type { EditionItem } from '$lib/types.js';
+	import type { PageData } from './$types.js';
 
-	let { data } = $props();
+	let { data }: { data: PageData } = $props();
 	const ed = $derived(data.edition);
 
 	/* Grading-desk v2: the inline vote pass is gone — its editorial signal is a
@@ -14,17 +16,18 @@
 	/* Folds print OPEN: beforeprint opens every fold (restored after). The
 	   @media print ::details-content rule covers engines where the event
 	   doesn't fire; together the paper never prints a closed fold. */
-	let foldStates = [];
+	let foldStates: boolean[] = [];
 	function openFolds() {
-		foldStates = [...document.querySelectorAll('details.fold')].map((d) => d.open);
-		document.querySelectorAll('details.fold').forEach((d) => (d.open = true));
+		const folds = document.querySelectorAll<HTMLDetailsElement>('details.fold');
+		foldStates = [...folds].map((d) => d.open);
+		folds.forEach((d) => (d.open = true));
 	}
 	function restoreFolds() {
-		document.querySelectorAll('details.fold').forEach((d, i) => (d.open = foldStates[i] ?? false));
+		document.querySelectorAll<HTMLDetailsElement>('details.fold').forEach((d, i) => (d.open = foldStates[i] ?? false));
 		foldStates = [];
 	}
 
-	function trackClick(item) {
+	function trackClick(item: EditionItem) {
 		try {
 			fetch('/api/corrections', {
 				method: 'POST',
@@ -68,17 +71,19 @@
 	</div>
 
 	{#if ed.lead}
+		{@const lead = ed.lead}
 		<div class="lead">
 			<div class="lead-main">
-				<div class="cap">Captured — you saved this yesterday, from {ed.lead.source}</div>
-				<h2><a href={ed.lead.url} onclick={() => trackClick(ed.lead)}>{ed.lead.title}</a></h2>
-				<p class="deck">{ed.lead.brief || ed.lead.title}</p>
+				<div class="cap">Captured — you saved this yesterday, from {lead.source}</div>
+				<h2><a href={lead.url} onclick={() => trackClick(lead)}>{lead.title}</a></h2>
+				<p class="deck">{lead.brief || lead.title}</p>
 			</div>
 			{#if ed.leadSide}
+				{@const leadSide = ed.leadSide}
 				<div class="lead-side1 well">
 					<div class="cap">Also captured</div>
-					<h3><a href={ed.leadSide.url} onclick={() => trackClick(ed.leadSide)}>{ed.leadSide.title}</a></h3>
-					<p>{ed.leadSide.brief || ed.leadSide.title}</p>
+					<h3><a href={leadSide.url} onclick={() => trackClick(leadSide)}>{leadSide.title}</a></h3>
+					<p>{leadSide.brief || leadSide.title}</p>
 					<span class="mark"><b>Captured</b> · your save</span>
 				</div>
 			{/if}

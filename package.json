@@ -8,6 +8,7 @@
     "dev": "vite dev",
     "build": "vite build",
     "preview": "vite preview",
+    "check": "svelte-check --tsconfig ./tsconfig.json",
     "start": "node build",
     "import-votes": "node scripts/import-votes.mjs"
   },
@@ -15,7 +16,10 @@
     "@sveltejs/adapter-node": "^5.2.12",
     "@sveltejs/kit": "^2.20.0",
     "@sveltejs/vite-plugin-svelte": "^5.0.3",
+    "@types/node": "^22.20.5",
     "svelte": "^5.25.0",
+    "svelte-check": "^4.7.7",
+    "typescript": "^5.9.3",
     "vite": "^6.2.0"
   },
   "engines": {

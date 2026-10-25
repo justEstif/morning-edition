@@ -1,17 +1,19 @@
-<script>
+<script lang="ts">
 	import '../../app.css';
+	import type { PageData } from './$types.js';
 
-	let { data } = $props();
+	let { data }: { data: PageData } = $props();
 	const d = $derived(data);
 
 	/* Folds print OPEN — same contract as the broadsheet (card t_dfe82b06). */
-	let foldStates = [];
+	let foldStates: boolean[] = [];
 	function openFolds() {
-		foldStates = [...document.querySelectorAll('details.fold')].map((dt) => dt.open);
-		document.querySelectorAll('details.fold').forEach((dt) => (dt.open = true));
+		const folds = document.querySelectorAll<HTMLDetailsElement>('details.fold');
+		foldStates = [...folds].map((dt) => dt.open);
+		folds.forEach((dt) => (dt.open = true));
 	}
 	function restoreFolds() {
-		document.querySelectorAll('details.fold').forEach((dt, i) => (dt.open = foldStates[i] ?? false));
+		document.querySelectorAll<HTMLDetailsElement>('details.fold').forEach((dt, i) => (dt.open = foldStates[i] ?? false));
 		foldStates = [];
 	}
 </script>

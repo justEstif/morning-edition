@@ -1,18 +1,30 @@
 import { error } from '@sveltejs/kit';
 import { loadEdition, loadHighlights, IS_DEMO } from '$lib/server/store.js';
 import { shapeEdition, SECTION_TITLES, markFor } from '$lib/edition.js';
+import type { HighlightRow, RawEdition } from '$lib/types.js';
+import type { PageServerLoad } from './$types.js';
 
 const MARK_TEXT_MAX = 280;
 
+/** One quoted Readeck mark as rendered by the panel. */
+interface MarkRow {
+	id: string;
+	text: string;
+	note: string;
+	title: string;
+	url: string;
+	created: string;
+}
+
 /** Group synced Readeck highlights by the section their item sits in today;
  *  anything whose item isn't in this edition lands in `earlier`. */
-function groupMarks(raw, highlights) {
+function groupMarks(raw: RawEdition, highlights: HighlightRow[]): { bySection: Record<string, MarkRow[]>; earlier: MarkRow[] } {
 	const sectionOf = new Map((raw?.items || []).map((it) => [it.id, it.section]));
-	const bySection = {};
-	const earlier = [];
+	const bySection: Record<string, MarkRow[]> = {};
+	const earlier: MarkRow[] = [];
 	for (const h of highlights) {
-		const mark = {
-			id: h.annotation_id,
+		const mark: MarkRow = {
+			id: h.annotation_id || '',
 			text: String(h.text || '').slice(0, MARK_TEXT_MAX),
 			note: h.note || '',
 			title: h.title || h.url || '',
@@ -30,7 +42,7 @@ function groupMarks(raw, highlights) {
 }
 
 /** QuickStudy panel — the same edition data, condensed into topic boxes. */
-export async function load({ url }) {
+export const load: PageServerLoad = async ({ url }) => {
 	const date = url.searchParams.get('date') || undefined;
 	const raw = await loadEdition(date);
 	if (!raw) {

@@ -52,6 +52,28 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { randomBytes } from 'node:crypto';
+import type {
+	CorrectionsSummary,
+	CorrectionSlot,
+	HighlightRow,
+	LedgerEvent,
+	LegacyGradeEvent,
+	LegacyVoteEvent,
+	RawEdition,
+	Reason,
+	Verdict,
+	VerdictEvent
+} from '../types.js';
+
+/** Build-time shape of a v2 event under construction (union payload fields
+ *  are optional until the type-specific branch fills them in). */
+type Envelope = Omit<VerdictEvent, 'type' | 'value' | 'reason' | 'supersedes' | 'flip_ms'> & {
+	type: 'verdict' | 'click';
+	value?: Verdict;
+	reason?: Reason;
+	supersedes?: string;
+	url?: string;
+};
 
 export const DATA_DIR = process.env.ME_DATA_DIR
 	? path.resolve(process.env.ME_DATA_DIR)
@@ -72,7 +94,7 @@ export const FLIP_MS = 2000;
 /** Readeck highlights synced by the pipeline (highlights.json on the volume,
  *  written by sync_signals.py). Returns [] when absent — the panel simply
  *  omits the 'From your marks' study boxes. */
-export async function loadHighlights() {
+export async function loadHighlights(): Promise<HighlightRow[]> {
 	try {
 		const rows = JSON.parse(await fs.readFile(path.join(DATA_DIR, 'highlights.json'), 'utf8'));
 		return Array.isArray(rows) ? rows : [];
@@ -81,7 +103,7 @@ export async function loadHighlights() {
 	}
 }
 
-export function editionPath(date) {
+export function editionPath(date?: string): string | null {
 	if (date) {
 		if (!DATE_RE.test(date)) return null;
 		return path.join(DATA_DIR, 'editions', date, 'edition.json');
@@ -92,7 +114,7 @@ export function editionPath(date) {
 /** Load raw edition JSON (latest, or ?date=). Returns null if absent.
  *  Latest resolution order: DATA_DIR/edition.json, then the max-dated file
  *  under DATA_DIR/editions/. */
-export async function loadEdition(date) {
+export async function loadEdition(date?: string): Promise<RawEdition | null> {
 	if (date) {
 		const p = editionPath(date);
 		if (!p) return null;
@@ -129,12 +151,13 @@ function shortId() {
 	return 'e-' + randomBytes(8).toString('base64url');
 }
 
-function bounded(v, max) {
+function bounded(v: unknown, max: number): string | undefined {
 	return typeof v === 'string' && v.length > 0 && v.length <= max ? v : undefined;
 }
 
-/** Validate one feedback event (v1 or v2); returns the canonical object or throws. */
-export function validateCorrection(body) {
+/** Validate one feedback event (v1 or v2); returns the canonical object or throws.
+ *  `body` is unvalidated wire JSON — anything goes in, only a LedgerEvent comes out. */
+export function validateCorrection(body: any): LedgerEvent {
 	const type = body?.type;
 
 	// v1 legacy rows: byte-identical canonical schema, still accepted so the
@@ -154,7 +177,7 @@ export function validateCorrection(body) {
 			value,
 			item_id: itemId,
 			edition_date: editionDate
-		};
+		} as LegacyGradeEvent | LegacyVoteEvent;
 	}
 
 	// v2 events: shared envelope + type payload.
@@ -168,7 +191,7 @@ export function validateCorrection(body) {
 	const editionDate = body?.edition_date;
 	if (typeof editionDate !== 'string' || !DATE_RE.test(editionDate)) throw new Error('edition_date must be YYYY-MM-DD');
 
-	const ev = {
+	const ev: Envelope = {
 		id: shortId(),
 		ts: new Date().toISOString(),
 		schema_v: 2,
@@ -203,7 +226,7 @@ export function validateCorrection(body) {
 		ev.url = url;
 	}
 
-	return ev;
+	return ev as LedgerEvent;
 }
 
 export function correctionsPath() {
@@ -220,7 +243,7 @@ function rejectionsPath() {
  *  edition_date (nothing on disk to check against) — a ghost date with a ghost
  *  id is accepted until that edition is built; acceptable for a personal
  *  pipeline, where editions are rsynced before grading happens. */
-export async function referentiallyValid(ev) {
+export async function referentiallyValid(ev: LedgerEvent): Promise<boolean> {
 	if (ev.schema_v !== 2) return true; // legacy rows predate edition-carried ids
 	const ed = await loadEdition(ev.edition_date);
 	if (!ed) return true; // no edition on disk yet — nothing to check against
@@ -234,8 +257,8 @@ export async function referentiallyValid(ev) {
 			reason: `item_id ${ev.item_id} absent from edition ${ev.edition_date}`,
 			session_id: ev.session_id,
 			type: ev.type,
-			value: ev.value,
-			url: ev.url
+			value: 'value' in ev ? ev.value : undefined,
+			url: 'url' in ev ? ev.url : undefined
 		}) + '\n',
 		'utf8'
 	);
@@ -246,7 +269,7 @@ export async function referentiallyValid(ev) {
  *  detection: a verdict <2s after the previous verdict for the same
  *  session+item+edition gets flip_ms so analysis can down-weight the burst
  *  instead of blindly applying last-write-wins. */
-export async function appendCorrection(ev) {
+export async function appendCorrection(ev: LedgerEvent): Promise<void> {
 	if (ev.schema_v === 2 && ev.type === 'verdict') {
 		const prev = await lastVerdictInSession(ev.session_id, ev.item_id, ev.edition_date);
 		if (prev) {
@@ -267,11 +290,11 @@ async function readRawLines() {
 }
 
 /** Most recent verdict event for a session+item+edition (file order = append order). */
-async function lastVerdictInSession(sessionId, itemId, editionDate) {
-	let last = null;
+async function lastVerdictInSession(sessionId: string, itemId: string, editionDate: string): Promise<LedgerEvent | null> {
+	let last: LedgerEvent | null = null;
 	for (const line of await readRawLines()) {
 		if (!line.trim()) continue;
-		let ev;
+		let ev: LedgerEvent;
 		try {
 			ev = JSON.parse(line);
 		} catch {
@@ -292,12 +315,12 @@ async function lastVerdictInSession(sessionId, itemId, editionDate) {
  *  to verdict; legacy vote stays vote; legacy capture stays grade (no v2
  *  verdict — a Readeck save is the capture signal now). Quarantined rows live
  *  in their own file and are never read here. */
-export async function readCorrections(date) {
-	const last = {};
+export async function readCorrections(date?: string): Promise<CorrectionsSummary> {
+	const last: Record<string, CorrectionSlot> = {};
 	let count = 0;
 	for (const line of await readRawLines()) {
 		if (!line.trim()) continue;
-		let ev;
+		let ev: LedgerEvent;
 		try {
 			ev = JSON.parse(line);
 		} catch {
