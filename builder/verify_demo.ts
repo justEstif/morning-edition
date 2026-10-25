@@ -84,6 +84,7 @@ const emptyEd = {
       id: "readeck-1",
       section: "might-like",
       kind: "brief",
+      tier: "brief",
       title: "T",
       url: "https://example.com/t",
       source: "readeck",
@@ -109,6 +110,7 @@ const bad = {
       id: "x",
       section: "rust-os",
       kind: "brief",
+      tier: "brief",
       title: "T",
       url: "https://e.com",
       source: "miniflux",
@@ -130,6 +132,32 @@ check(
   rejected && rejectedMsg.includes("requires a 'brief'"),
   rejectedMsg,
 );
+
+// tierless input is rejected outright — the tier is REQUIRED (t_6000c019
+// scope amendment: no legacy fallback; the builder is the only writer)
+const tierless = {
+  edition_date: "2026-01-01",
+  items: [
+    {
+      id: "y",
+      section: "rust-os",
+      kind: "brief",
+      title: "T",
+      url: "https://e.com/y",
+      source: "miniflux",
+      brief: "Self-contained summary. Second sentence.",
+    },
+  ],
+};
+const tmpTierless = join(REPO, "..", "tmp-me-tierless.json");
+writeFileSync(tmpTierless, JSON.stringify(tierless));
+let tierRejected = false;
+try {
+  build(tmpTierless, join(REPO, "..", "tmp-me-tierless-out"));
+} catch {
+  tierRejected = true;
+}
+check("rejects tierless edition (required tier)", tierRejected);
 
 // briefs self-contained: each kind=brief item has >= 2 sentences
 const data = JSON.parse(readFileSync(join(REPO, "data", "demo", "edition-demo.json"), "utf-8"));
