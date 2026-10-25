@@ -5,7 +5,8 @@ Usage:
     python3 builder/build_edition.py <edition.json> <output_dir>
 
 Reads templates/broadsheet.html and templates/broadsheet.css (found relative to
-the repository root) and writes <output_dir>/index.html plus assets/style.css.
+the repository root) and writes <output_dir>/index.html, <output_dir>/grade.html
+plus assets/style.css and assets/feedback.js.
 The output is a pure function of the edition JSON and the templates — no
 timestamps, no randomness — so rebuilding the same edition is deterministic.
 
@@ -109,8 +110,20 @@ def render_item(item, drop_cap):
         + (f' &middot; captured {esc(item["captured_at"][:10])}' if item.get("captured_at") else "")
         + "</p>"
     )
+    parts.append(render_vote_controls(item))
     parts.append("      </div>")
     return "\n".join(parts)
+
+
+def render_vote_controls(item):
+    """Screen-only inline vote controls; typographic, part of the mark system."""
+    return (
+        f'        <p class="vote screen-only" data-item-id="{esc(item["id"])}">'
+        f'<span class="vq">Worth your time?</span> '
+        f'<button type="button" class="vote-btn" data-value="up">commend</button>'
+        f'<span class="vsep"> &middot; </span>'
+        f'<button type="button" class="vote-btn" data-value="down">dismiss</button></p>'
+    )
 
 
 def render_section(section_key, items):
@@ -143,9 +156,41 @@ def render_lead(captured_items):
         f'    <div class="cap">Captured &mdash; saved from your reading, via {esc(item["source"])}</div>\n'
         f'    <h2><a href="{esc(item["url"])}">{esc(item["title"])}</a></h2>\n'
         f'    <p class="deck">{esc(item.get("brief", ""))}</p>\n'
+        f'    {render_vote_controls(item)}\n'
         f'  </div>\n'
     )
     return lead, captured_items[1:]
+
+
+def render_grade_rows(items):
+    """Grade-page rows for every item, grouped under the same section headers."""
+    sections = group_items(items)
+    chunks = []
+    for key in SECTION_ORDER:
+        if not sections[key]:
+            continue
+        rows = "\n".join(
+            f'    <div class="grade-row" data-item-id="{esc(it["id"])}">\n'
+            f'      <div class="g-body">\n'
+            f'        <h3><a href="{esc(it["url"])}">{esc(it["title"])}</a></h3>\n'
+            f'        <p class="mark"><b>{KIND_MARKS[it["kind"]]} {KIND_LABELS[it["kind"]]}</b>'
+            f' &middot; via {esc(it["source"])}</p>\n'
+            f'      </div>\n'
+            f'      <div class="g-btns screen-only">\n'
+            f'        <button type="button" class="grade-btn" data-value="deep-read">deep read</button>\n'
+            f'        <button type="button" class="grade-btn" data-value="skim">skim</button>\n'
+            f'        <button type="button" class="grade-btn" data-value="capture">capture</button>\n'
+            f'      </div>\n'
+            f'    </div>'
+            for it in sections[key]
+        )
+        chunks.append(
+            f'  <section>\n'
+            f'    <h2 class="col-h">{SECTION_TITLES[key]}</h2>\n'
+            f'{rows}\n'
+            f'  </section>'
+        )
+    return "\n".join(chunks)
 
 
 def build(edition_path, output_dir):
@@ -177,11 +222,22 @@ def build(edition_path, output_dir):
         .replace("{{SECTIONS}}", sections_html)
     )
 
+    grade_template = (TEMPLATES_DIR / "grade.html").read_text(encoding="utf-8")
+    grade_page = (
+        grade_template.replace("{{TITLE}}", f"The Grading Desk &mdash; {long_date(edition_date)}")
+        .replace("{{MASTHEAD_DATE}}", esc(long_date(edition_date)))
+        .replace("{{EDITION_DATE}}", esc(edition_date))
+        .replace("{{ITEM_COUNT}}", str(len(items)))
+        .replace("{{GRADE_ROWS}}", render_grade_rows(items))
+    )
+
     output_dir = Path(output_dir)
     assets = output_dir / "assets"
     assets.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(TEMPLATES_DIR / "broadsheet.css", assets / "style.css")
+    shutil.copyfile(TEMPLATES_DIR / "feedback.js", assets / "feedback.js")
     (output_dir / "index.html").write_text(page, encoding="utf-8")
+    (output_dir / "grade.html").write_text(grade_page, encoding="utf-8")
     print(f"wrote {output_dir / 'index.html'} ({len(items)} items, "
           f"{sum(1 for k in order if sections.get(k)) + (1 if lead_html else 0)} sections incl. lead)")
 

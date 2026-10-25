@@ -9,7 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&amp;family=IM+Fell+English+SC&amp;family=Pirata+One&amp;display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/style.css">
 </head>
-<body>
+<body data-edition-date="2026-10-25">
 <div class="frame"><div class="sheet">
   <div class="masthead">
     <div class="over">Your Personal Morning Edition</div>
@@ -26,6 +26,7 @@
     <div class="cap">Captured &mdash; saved from your reading, via miniflux</div>
     <h2><a href="https://example.com/async-rust-two-years-in">Async Rust, Two Years In: What the Borrow Checker Actually Costs You</a></h2>
     <p class="deck">The async Rust ecosystem has settled on patterns that make cancellation safety tractable, and most complaints trace back to three specific footguns. A 14-minute read held for a full sitting.</p>
+            <p class="vote screen-only" data-item-id="miniflux-8123"><span class="vq">Worth your time?</span> <button type="button" class="vote-btn" data-value="up">commend</button><span class="vsep"> &middot; </span><button type="button" class="vote-btn" data-value="down">dismiss</button></p>
   </div>
 
   <section>
@@ -35,6 +36,7 @@
         <h3><a href="https://example.com/self-hosting-economics-2026">The Economics of Self-Hosting in 2026</a></h3>
         <p>A worked comparison of VPS pricing, electricity, and admin hours for a small self-hosted stack against equivalent managed services. The break-even point sits around six low-traffic services, after which owning the box wins on cost and control.</p>
         <p class="mark"><b>&#10086; Captured</b> &middot; via readeck &middot; captured 2026-10-24</p>
+        <p class="vote screen-only" data-item-id="readeck-1042"><span class="vq">Worth your time?</span> <button type="button" class="vote-btn" data-value="up">commend</button><span class="vsep"> &middot; </span><button type="button" class="vote-btn" data-value="down">dismiss</button></p>
       </div>
     </div>
   </section>
@@ -45,16 +47,19 @@
         <h3><a href="https://example.com/filesystem-1000-lines-rust">A Filesystem in 1,000 Lines of Rust</a></h3>
         <p>Log-structured layout, crash consistency, and exactly where the author cut corners — a worked filesystem built in a thousand lines of Rust.</p>
         <p class="mark"><b>&#8224; Deep read</b> &middot; via miniflux</p>
+        <p class="vote screen-only" data-item-id="miniflux-8201"><span class="vq">Worth your time?</span> <button type="button" class="vote-btn" data-value="up">commend</button><span class="vsep"> &middot; </span><button type="button" class="vote-btn" data-value="down">dismiss</button></p>
       </div>
       <div class="item"><div class="div">&#10086;</div>
         <h3><a href="https://example.com/rustcgo-ffi">RustCGo: Calling Go From Rust Without the FFI Pain</a></h3>
         <p>Calling Go from Rust via cgo costs roughly 200ns per crossing and drags a second garbage collector into the process. Benchmarks show it only pays off when one specific Go library is needed; otherwise pure Rust wins.</p>
         <p class="mark"><b>&#8225; Brief</b> &middot; via miniflux</p>
+        <p class="vote screen-only" data-item-id="miniflux-8187"><span class="vq">Worth your time?</span> <button type="button" class="vote-btn" data-value="up">commend</button><span class="vsep"> &middot; </span><button type="button" class="vote-btn" data-value="down">dismiss</button></p>
       </div>
       <div class="item"><div class="div">&#10086;</div>
         <h3><a href="https://example.com/tickless-schedulers">Scheduler Tickless Designs Compared</a></h3>
         <p>A fully tickless scheduler saves about 4% idle power across three hobby kernels but complicates timer handling. The hybrid design — tickless at idle, ticked under load — wins on both power and latency, and is what Linux already does.</p>
         <p class="mark"><b>&#8225; Brief</b> &middot; via miniflux</p>
+        <p class="vote screen-only" data-item-id="miniflux-8190"><span class="vq">Worth your time?</span> <button type="button" class="vote-btn" data-value="up">commend</button><span class="vsep"> &middot; </span><button type="button" class="vote-btn" data-value="down">dismiss</button></p>
       </div>
     </div>
   </section>
@@ -65,16 +70,19 @@
         <h3><a href="https://example.com/agent-productivity-metrics">What Teams Actually Measure When They Measure Agent Productivity</a></h3>
         <p>A four-metric frame for judging how much software agents actually deliver, drawn from teams that instrument their rollouts. Worth a long sitting.</p>
         <p class="mark"><b>&#8224; Deep read</b> &middot; via miniflux</p>
+        <p class="vote screen-only" data-item-id="miniflux-8225"><span class="vq">Worth your time?</span> <button type="button" class="vote-btn" data-value="up">commend</button><span class="vsep"> &middot; </span><button type="button" class="vote-btn" data-value="down">dismiss</button></p>
       </div>
       <div class="item"><div class="div">&#10086;</div>
         <h3><a href="https://example.com/dr-tabletop-templates">Disaster-Recovery Tabletop Templates for Small Platform Teams</a></h3>
         <p>A template library for DR tabletop exercises where only one piece earns its keep: a third-party-outage scenario with pre-written injects and a 30-minute timebox. The other four templates are filler.</p>
         <p class="mark"><b>&#8225; Brief</b> &middot; via miniflux</p>
+        <p class="vote screen-only" data-item-id="miniflux-8231"><span class="vq">Worth your time?</span> <button type="button" class="vote-btn" data-value="up">commend</button><span class="vsep"> &middot; </span><button type="button" class="vote-btn" data-value="down">dismiss</button></p>
       </div>
       <div class="item"><div class="div">&#10086;</div>
         <h3><a href="https://example.com/this-week-in-react-512">This Week in React #512</a></h3>
         <p>The notable item in this newsletter issue is React&#x27;s RSC caching RFC, which proposes default-caching fetches in both dev and prod with explicit invalidation. The community is split on whether defaults should ever cache.</p>
         <p class="mark"><b>&#8225; Brief</b> &middot; via miniflux</p>
+        <p class="vote screen-only" data-item-id="miniflux-8239"><span class="vq">Worth your time?</span> <button type="button" class="vote-btn" data-value="up">commend</button><span class="vsep"> &middot; </span><button type="button" class="vote-btn" data-value="down">dismiss</button></p>
       </div>
     </div>
   </section>
@@ -85,11 +93,59 @@
         <h3><a href="https://example.com/lost-art-of-the-memorandum">The Lost Art of the Memorandum: How Writers Kept Thinking Before Notebooks</a></h3>
         <p>Before personal notes were files, writers kept loose memorandums — one idea per slip, physically reshuffled while composing. The author argues the slip, not the notebook, was the real thinking tool.</p>
         <p class="mark"><b>&#10033; Brief</b> &middot; via readeck</p>
+        <p class="vote screen-only" data-item-id="readeck-1088"><span class="vq">Worth your time?</span> <button type="button" class="vote-btn" data-value="up">commend</button><span class="vsep"> &middot; </span><button type="button" class="vote-btn" data-value="down">dismiss</button></p>
       </div>
     </div>
   </section>
 
+  <div class="toolbar screen-only">
+    <a class="grade-link" href="grade.html">Grade this edition &rarr;</a>
+    <span class="fl">&#10086;</span>
+    <span id="fb-count"></span>
+    <button id="fb-export" type="button">Export feedback</button>
+  </div>
   <footer>&mdash; 9 items &middot; edition 2026-10-25 &middot; compiled by the 7 AM pipeline &middot; demo edition, mock data only &mdash;</footer>
 </div></div>
+<script src="assets/feedback.js"></script>
+<script>
+/* Inline votes: one JSONL event per tap in localStorage['me-feedback-events']. */
+(function () {
+  'use strict';
+  var EDITION_DATE = document.body.getAttribute('data-edition-date');
+
+  function paint() {
+    var buttons = document.querySelectorAll('.vote-btn');
+    for (var i = 0; i < buttons.length; i++) {
+      var btn = buttons[i];
+      var holder = btn.closest('.vote');
+      var last = window.MEFeedback.lastFor(holder.getAttribute('data-item-id'), 'vote');
+      btn.classList.toggle('voted', last === btn.getAttribute('data-value'));
+    }
+    var n = document.getElementById('fb-count');
+    if (n) {
+      var c = window.MEFeedback.count();
+      n.textContent = c + ' feedback event' + (c === 1 ? '' : 's') + ' on this device';
+    }
+  }
+
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest ? e.target.closest('.vote-btn') : null;
+    if (!btn) { return; }
+    var holder = btn.closest('.vote');
+    window.MEFeedback.append('vote', btn.getAttribute('data-value'),
+      holder.getAttribute('data-item-id'), EDITION_DATE);
+    paint();
+  });
+
+  var ex = document.getElementById('fb-export');
+  if (ex) {
+    ex.addEventListener('click', function () {
+      window.MEFeedback.exportJSONL();
+      paint();
+    });
+  }
+  paint();
+})();
+</script>
 </body>
 </html>

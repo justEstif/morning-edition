@@ -65,6 +65,26 @@ short = [i["id"] for i in data["items"]
          if i["kind"] == "brief" and i.get("brief", "").count(".") < 2]
 check("briefs multi-sentence", not short, str(short))
 
+# --- Card 2: feedback UI (inline votes + grade page, localStorage JSONL) ---
+grade = (REPO / "docs" / "grade.html").read_text(encoding="utf-8")
+fb_js = (REPO / "docs" / "assets" / "feedback.js").read_text(encoding="utf-8")
+item_ids = [i["id"] for i in data["items"]]
+
+check("grade page built", "The Grading Desk" in grade)
+check("grade rows match item ids", all(f'data-item-id="{i}"' in grade for i in item_ids))
+check("grade verdict buttons", all(f'data-value="{v}"' in grade for v in ("deep-read", "skim", "capture")))
+check("inline votes on every item", docs.count('class="vote screen-only"') == len(item_ids), str(docs.count('class="vote screen-only"')))
+check("vote values", 'data-value="up"' in docs and 'data-value="down"' in docs)
+check("feedback.js shared", "me-feedback-events" in fb_js and "me-feedback-events" in docs and "me-feedback-events" in grade)
+check("export affordance", 'id="fb-export"' in docs and 'id="fb-export"' in grade and "exportJSONL" in fb_js)
+check("edition date on body", 'data-edition-date="' + data["edition_date"] + '"' in docs and 'data-edition-date="' + data["edition_date"] + '"' in grade)
+check("no network calls", "fetch(" not in fb_js and "XMLHttpRequest" not in fb_js)
+gstyle = "".join(re.findall(r'<style[^>]*>(.*?)</style>', grade, re.S)) + " ".join(re.findall(r'style="([^"]*)"', grade))
+gcolors = sorted(set(re.findall(r'#[0-9a-fA-F]{3,6}\b|rgba?\([^)]*\)', gstyle)))
+check("grade page palette only", gcolors == [], str(gcolors))
+check("grade hosts clean", set(re.findall(r'href="(https?://[^/"]+)', grade)) <= {"https://example.com", "https://fonts.googleapis.com", "https://fonts.gstatic.com"})
+
 fails = [c for c in checks if not c[1]]
+
 print(f"\n{len(checks) - len(fails)}/{len(checks)} checks passed")
 sys.exit(1 if fails else 0)

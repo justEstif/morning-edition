@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{TITLE}}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&amp;family=IM+Fell+English+SC&amp;family=Pirata+One&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body class="grade-page" data-edition-date="{{EDITION_DATE}}">
+<div class="frame"><div class="sheet">
+  <div class="masthead">
+    <div class="over">Your Personal Morning Edition</div>
+    <h1>The Grading Desk</h1>
+    <div class="under">one tap per item &mdash; deep read, skim, or capture</div>
+  </div>
+  <div class="rail">
+    <span>{{MASTHEAD_DATE}}</span><span class="fl">&#10086;</span>
+    <span id="grade-count"></span><span class="fl">&#10086;</span>
+    <span>demo edition &mdash; mock data only</span>
+  </div>
+
+{{GRADE_ROWS}}
+  <div class="toolbar screen-only">
+    <a class="grade-link" href="index.html">&larr; Back to the edition</a>
+    <span class="fl">&#10086;</span>
+    <span id="fb-count"></span>
+    <button id="fb-export" type="button">Export feedback</button>
+  </div>
+  <footer>&mdash; {{ITEM_COUNT}} items &middot; edition {{EDITION_DATE}} &middot; grading appends to the same feedback ledger as the edition page &middot; demo edition, mock data only &mdash;</footer>
+</div></div>
+<script src="assets/feedback.js"></script>
+<script>
+/* Grading: one tap per item appends a grade event to localStorage['me-feedback-events'],
+   the same key and schema the inline votes on the edition page use. */
+(function () {
+  'use strict';
+  var EDITION_DATE = document.body.getAttribute('data-edition-date');
+
+  function paint() {
+    var buttons = document.querySelectorAll('.grade-btn');
+    var graded = {};
+    var n = 0;
+    for (var i = 0; i < buttons.length; i++) {
+      var btn = buttons[i];
+      var row = btn.closest('.grade-row');
+      var id = row.getAttribute('data-item-id');
+      if (!(id in graded)) {
+        graded[id] = window.MEFeedback.lastFor(id, 'grade');
+        if (graded[id]) { n++; }
+      }
+      btn.classList.toggle('picked', graded[id] === btn.getAttribute('data-value'));
+    }
+    var total = document.querySelectorAll('.grade-row').length;
+    var counter = document.getElementById('grade-count');
+    if (counter) { counter.textContent = n + ' of ' + total + ' items graded'; }
+    var fbn = document.getElementById('fb-count');
+    if (fbn) {
+      var c = window.MEFeedback.count();
+      fbn.textContent = c + ' feedback event' + (c === 1 ? '' : 's') + ' on this device';
+    }
+  }
+
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest ? e.target.closest('.grade-btn') : null;
+    if (!btn) { return; }
+    var row = btn.closest('.grade-row');
+    window.MEFeedback.append('grade', btn.getAttribute('data-value'),
+      row.getAttribute('data-item-id'), EDITION_DATE);
+    paint();
+  });
+
+  var ex = document.getElementById('fb-export');
+  if (ex) {
+    ex.addEventListener('click', function () {
+      window.MEFeedback.exportJSONL();
+      paint();
+    });
+  }
+  paint();
+})();
+</script>
+</body>
+</html>

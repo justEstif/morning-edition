@@ -9,7 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&amp;family=IM+Fell+English+SC&amp;family=Pirata+One&amp;display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/style.css">
 </head>
-<body>
+<body data-edition-date="{{EDITION_DATE}}">
 <div class="frame"><div class="sheet">
   <div class="masthead">
     <div class="over">Your Personal Morning Edition</div>
@@ -24,7 +24,54 @@
 
 {{LEAD}}
 {{SECTIONS}}
+  <div class="toolbar screen-only">
+    <a class="grade-link" href="grade.html">Grade this edition &rarr;</a>
+    <span class="fl">&#10086;</span>
+    <span id="fb-count"></span>
+    <button id="fb-export" type="button">Export feedback</button>
+  </div>
   <footer>&mdash; {{ITEM_COUNT}} items &middot; edition {{EDITION_DATE}} &middot; compiled by the 7 AM pipeline &middot; demo edition, mock data only &mdash;</footer>
 </div></div>
+<script src="assets/feedback.js"></script>
+<script>
+/* Inline votes: one JSONL event per tap in localStorage['me-feedback-events']. */
+(function () {
+  'use strict';
+  var EDITION_DATE = document.body.getAttribute('data-edition-date');
+
+  function paint() {
+    var buttons = document.querySelectorAll('.vote-btn');
+    for (var i = 0; i < buttons.length; i++) {
+      var btn = buttons[i];
+      var holder = btn.closest('.vote');
+      var last = window.MEFeedback.lastFor(holder.getAttribute('data-item-id'), 'vote');
+      btn.classList.toggle('voted', last === btn.getAttribute('data-value'));
+    }
+    var n = document.getElementById('fb-count');
+    if (n) {
+      var c = window.MEFeedback.count();
+      n.textContent = c + ' feedback event' + (c === 1 ? '' : 's') + ' on this device';
+    }
+  }
+
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest ? e.target.closest('.vote-btn') : null;
+    if (!btn) { return; }
+    var holder = btn.closest('.vote');
+    window.MEFeedback.append('vote', btn.getAttribute('data-value'),
+      holder.getAttribute('data-item-id'), EDITION_DATE);
+    paint();
+  });
+
+  var ex = document.getElementById('fb-export');
+  if (ex) {
+    ex.addEventListener('click', function () {
+      window.MEFeedback.exportJSONL();
+      paint();
+    });
+  }
+  paint();
+})();
+</script>
 </body>
 </html>

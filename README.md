@@ -1,7 +1,9 @@
 # The Morning Edition — builder
 
 Turns an edition JSON into a static Victorian-broadsheet web page (pure black
-& white, print-ready, no JS frameworks, no site JS).
+& white, print-ready, no JS frameworks) plus a grading desk page. Outputs:
+`<out>/index.html`, `<out>/grade.html`, `<out>/assets/style.css`,
+`<out>/assets/feedback.js`.
 
 ## Build
 
@@ -47,3 +49,24 @@ lead feature; remaining captures fill the pinned Captured section. Marks are
 typographic only: `†` deep read, `‡` brief, `❦` captured, `✳` suggested
 (might-like items). `shadow_score` is engine metadata and is never rendered;
 placement is never driven by it.
+
+## Feedback loop (v1, local-only)
+
+Both pages write one append-only JSONL event stream to
+`localStorage['me-feedback-events']` — one JSON object per line:
+
+```json
+{"ts": "ISO-8601", "type": "vote | grade", "value": "up | down | deep-read | skim | capture", "item_id": "miniflux-8123", "edition_date": "YYYY-MM-DD"}
+```
+
+- `type=vote`: inline like/dislike per item on the edition page (`up | down`).
+- `type=grade`: one-tap verdicts on `grade.html` (`deep-read | skim | capture`),
+  built from the same edition JSON so item ids always match.
+- Duplicate events for the same item+type are allowed; the later timestamp wins
+  at analysis time. Never dedupe client-side.
+- No network calls: the "Export feedback" affordance (screen-only, both pages)
+  downloads the stream as `me-feedback-YYYYMMDD.jsonl` — that file is the v1
+  path into the future corrections API / recommend engine.
+
+All feedback affordances are typographic, black & white, and hidden in
+`@media print` (`.screen-only`), so the printed paper is unchanged.
