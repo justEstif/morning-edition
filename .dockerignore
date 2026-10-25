@@ -1,0 +1,10 @@
+.git
+node_modules
+build
+.svelte-kit
+docs
+builder
+templates
+data/editions
+Dockerfile
+.dockerignore

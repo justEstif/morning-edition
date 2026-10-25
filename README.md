@@ -1,29 +1,49 @@
-# The Morning Edition — builder
+# The Morning Edition
 
-Turns an edition JSON into a static Victorian-broadsheet web page (pure black
-& white, print-ready, no JS frameworks) plus a QuickStudy panel page and a
-grading desk page — all three renders from the same edition JSON. Outputs:
-`<out>/index.html`, `<out>/panel.html`, `<out>/grade.html`,
-`<out>/assets/style.css`, `<out>/assets/feedback.js`.
+A daily generated broadsheet: the Python builder turns an edition JSON into
+edition data; the SvelteKit app renders it (001e borderless-grid design) and
+collects feedback server-side. Deployed **privately** on dokku — real editions
+are never publicly reachable.
 
-## Build
-
-```sh
-python3 builder/build_edition.py data/demo/edition-demo.json docs/
+```
+Python builder (source of truth)   →  edition JSON  →  SvelteKit app (render + deliver)
+~/.hermes/morning-edition/ pipeline                   this repo, adapter-node on dokku
 ```
 
-The build is deterministic: the same JSON and templates always produce
-byte-identical output.
+## Layout
 
-## Public/demo-only constraint (binding)
+- `builder/` — Python builder + demo verifier (`verify_demo.py`). The builder
+  is deterministic; it is the only writer of edition JSON. It still outputs
+  the static demo (`docs/`): `index.html`, `panel.html`, `grade.html`,
+  `assets/style.css`, `assets/feedback.js`.
+- `data/demo/edition-demo.json` — **demo/mock data only.** This repo is
+  public; the binding constraint is: demo data here, real data only on the
+  private dokku app's volume. Never commit a real edition or any credential.
+- `docs/` — the old static Pages demo, kept for reference (localStorage-only
+  feedback, marked "demo edition"). **GitHub Pages is retired** (disabled
+  2026-10-24); the site now lives on dokku (below).
+- `src/` — the SvelteKit app (adapter-node):
+  - `/` — the edition, 001e borderless full-bleed 12-column grid
+    (sections `grid-template-columns: subgrid`, items `grid-template-rows:
+    subgrid` so titles/bodies/marks align across columns). B&W only,
+    IM Fell English/SC + Pirata One, drop caps, dagger marks
+    († deep read · ‡ brief · ❦ captured · ✳ suggested).
+  - `/panel` — QuickStudy panel: the same data, condensed topic boxes.
+  - `/grade` — the grading desk: one tap per item (deep read / skim / capture).
+  - `POST /api/corrections` — append one feedback event to the server-side
+    JSONL ledger (restart-safe: the file lives on the host volume). Body:
+    `{"type":"vote|grade","value":"up|down|deep-read|skim|capture",
+    "item_id":"...","edition_date":"YYYY-MM-DD"}` — `ts` is stamped by the
+    server. Later events win at analysis time; never dedupe.
+  - `GET /api/corrections?date=` — ledger count + latest value per item.
+  - `GET /api/edition?date=YYYY-MM-DD` — raw edition JSON (default: latest).
+- `scripts/import-votes.mjs` — migrate the old localStorage export from the
+  retired Pages demo (export it from the demo grade page first):
+  `npm run import-votes -- me-feedback-20261025.jsonl --url <app-url> --auth user:pass`
 
-This repository and its GitHub Pages site are **public**. `docs/` (the Pages
-root) must contain **demo/mock data only** — never a real personal edition.
-Real editions are built locally and served privately; never commit them here.
+## Edition JSON (canonical shape)
 
-## Edition JSON
-
-Canonical shape (see `data/demo/edition-demo.json`):
+See `data/demo/edition-demo.json`:
 
 ```json
 {
@@ -45,37 +65,76 @@ Canonical shape (see `data/demo/edition-demo.json`):
 ```
 
 Rendering rules: sections render in the order captured → rust-os → ai-at-work
-→ might-like; empty sections are omitted. The first `captured` item becomes the
-lead feature; remaining captures fill the pinned Captured section. Marks are
-typographic only: `†` deep read, `‡` brief, `❦` captured, `✳` suggested
-(might-like items). `shadow_score` is engine metadata and is never rendered;
-placement is never driven by it.
+→ might-like; empty sections are omitted. The first captured item is the lead
+feature; the second fills the "Also captured" well; the rest fill the Captured
+section. Marks are typographic only: `†` deep read, `‡` brief, `❦` captured,
+`✳` suggested (might-like items). `shadow_score` is engine metadata and is
+never rendered; placement is never driven by it.
 
-## The QuickStudy panel
+## Data directory (env `ME_DATA_DIR`)
 
-`panel.html` is the second render of the same edition data: the identical
-sections and dagger marks, condensed into bordered topic boxes for a fast
-scan. The broadsheet's toolbar links to it (`QuickStudy panel →`) and the
-panel links back (`← Broadsheet`) — one data model, two layouts, both built
-by the same builder run.
+The app reads everything from one directory (`ME_DATA_DIR`, default
+`data/demo` = demo mode; the rail then says "demo edition — mock data only"):
 
-## Feedback loop (v1, local-only)
-
-Both pages write one append-only JSONL event stream to
-`localStorage['me-feedback-events']` — one JSON object per line:
-
-```json
-{"ts": "ISO-8601", "type": "vote | grade", "value": "up | down | deep-read | skim | capture", "item_id": "miniflux-8123", "edition_date": "YYYY-MM-DD"}
+```
+$ME_DATA_DIR/
+  edition.json                        # latest edition (no ?date= reads this)
+  editions/<YYYY-MM-DD>/edition.json  # dated editions (?date=... reads these)
+  corrections.jsonl                   # append-only feedback ledger (server-writable)
 ```
 
-- `type=vote`: inline like/dislike per item on the edition page (`up | down`).
-- `type=grade`: one-tap verdicts on `grade.html` (`deep-read | skim | capture`),
-  built from the same edition JSON so item ids always match.
-- Duplicate events for the same item+type are allowed; the later timestamp wins
-  at analysis time. Never dedupe client-side.
-- No network calls: the "Export feedback" affordance (screen-only, both pages)
-  downloads the stream as `me-feedback-YYYYMMDD.jsonl` — that file is the v1
-  path into the future corrections API / recommend engine.
+On the dokku app, `ME_DATA_DIR=/data` with a host volume mount; the daily
+build rsyncs new edition JSON into it. The app never writes edition JSON.
 
-All feedback affordances are typographic, black & white, and hidden in
-`@media print` (`.screen-only`), so the printed paper is unchanged.
+## Build & run
+
+```sh
+npm ci
+npm run build        # vite build + adapter-node
+PORT=3000 npm start  # node build
+```
+
+Docker (what dokku builds): pinned `node:22-bookworm-slim`, `npm ci`,
+`npm run build`, `CMD ["node","build"]`.
+
+Static demo rebuild (unchanged, deterministic):
+
+```sh
+python3 builder/build_edition.py data/demo/edition-demo.json docs/
+```
+
+## Private dokku deploy (contabo)
+
+```sh
+# one-time server setup (ssh contabo)
+dokku apps:create morning-edition
+dokku git:set morning-edition deploy-branch main
+mkdir -p /var/lib/morning-edition/editions
+dokku storage:add morning-edition /var/lib/morning-edition:/data
+dokku config:set morning-edition ME_DATA_DIR=/data ORIGIN=https://morning-edition.estifanos.cc
+dokku domains:add morning-edition morning-edition.estifanos.cc
+dokku letsencrypt:enable morning-edition
+# private: nginx-level basic auth (credentials generated out-of-band, NEVER committed)
+dokku http-auth:add morning-edition <user> <password>
+dokku ps:scale morning-edition web=1
+
+# deploy (from the repo)
+git remote add dokku dokku@contabo:morning-edition   # one-time
+git push dokku main
+
+# daily edition refresh (run by the 7am ET Hermes cron; no manual steps)
+rsync -a ~/.hermes/morning-edition/editions/<today>/edition.json \
+  contabo:/var/lib/morning-edition/editions/<today>/edition.json
+rsync -a ~/.hermes/morning-edition/editions/<today>/edition.json \
+  contabo:/var/lib/morning-edition/edition.json
+```
+
+The daily build pipeline itself is documented in
+`~/.hermes/morning-edition/RUNBOOK.md` (local-only; not in this repo).
+
+## Demo verifier / CI
+
+`python3 builder/verify_demo.py` — acceptance checks over the committed demo
+edition (CI runs it, rebuilds `docs/`, and fails if `docs/` is stale). CI also
+builds the SvelteKit app (`npm ci && npm run build`) so the node side cannot
+silently rot.

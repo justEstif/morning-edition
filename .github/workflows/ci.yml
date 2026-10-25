@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  demo:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,3 +23,15 @@ jobs:
             echo "::error::docs/ is stale — run 'python3 builder/build_edition.py data/demo/edition-demo.json docs' and commit the result"
             exit 1
           fi
+  app:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Build the SvelteKit app
+        run: |
+          npm ci
+          npm run build
