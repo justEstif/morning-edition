@@ -1,97 +1,106 @@
 {
-  "edition_date": "2026-10-25",
-  "items": [
-    {
-      "id": "miniflux-8123",
-      "section": "captured",
-      "kind": "captured",
-      "title": "Async Rust, Two Years In: What the Borrow Checker Actually Costs You",
-      "url": "https://example.com/async-rust-two-years-in",
-      "source": "miniflux",
-      "brief": "The async Rust ecosystem has settled on patterns that make cancellation safety tractable, and most complaints trace back to three specific footguns. A 14-minute read held for a full sitting.",
-      "captured_at": "2026-10-24T18:40:00Z",
-      "shadow_score": 0.0
-    },
-    {
-      "id": "readeck-1042",
-      "section": "captured",
-      "kind": "captured",
-      "title": "The Economics of Self-Hosting in 2026",
-      "url": "https://example.com/self-hosting-economics-2026",
-      "source": "readeck",
-      "brief": "A worked comparison of VPS pricing, electricity, and admin hours for a small self-hosted stack against equivalent managed services. The break-even point sits around six low-traffic services, after which owning the box wins on cost and control.",
-      "captured_at": "2026-10-24T21:05:00Z",
-      "shadow_score": 0.0
-    },
-    {
-      "id": "miniflux-8201",
-      "section": "rust-os",
-      "kind": "deep-read",
-      "title": "A Filesystem in 1,000 Lines of Rust",
-      "url": "https://example.com/filesystem-1000-lines-rust",
-      "source": "miniflux",
-      "brief": "Log-structured layout, crash consistency, and exactly where the author cut corners — a worked filesystem built in a thousand lines of Rust.",
-      "shadow_score": 0.82
-    },
-    {
-      "id": "miniflux-8187",
-      "section": "rust-os",
-      "kind": "brief",
-      "title": "RustCGo: Calling Go From Rust Without the FFI Pain",
-      "url": "https://example.com/rustcgo-ffi",
-      "source": "miniflux",
-      "brief": "Calling Go from Rust via cgo costs roughly 200ns per crossing and drags a second garbage collector into the process. Benchmarks show it only pays off when one specific Go library is needed; otherwise pure Rust wins.",
-      "shadow_score": 0.41
-    },
-    {
-      "id": "miniflux-8190",
-      "section": "rust-os",
-      "kind": "brief",
-      "title": "Scheduler Tickless Designs Compared",
-      "url": "https://example.com/tickless-schedulers",
-      "source": "miniflux",
-      "brief": "A fully tickless scheduler saves about 4% idle power across three hobby kernels but complicates timer handling. The hybrid design — tickless at idle, ticked under load — wins on both power and latency, and is what Linux already does.",
-      "shadow_score": 0.37
-    },
-    {
-      "id": "miniflux-8225",
-      "section": "ai-at-work",
-      "kind": "deep-read",
-      "title": "What Teams Actually Measure When They Measure Agent Productivity",
-      "url": "https://example.com/agent-productivity-metrics",
-      "source": "miniflux",
-      "brief": "A four-metric frame for judging how much software agents actually deliver, drawn from teams that instrument their rollouts. Worth a long sitting.",
-      "shadow_score": 0.77
-    },
-    {
-      "id": "miniflux-8231",
-      "section": "ai-at-work",
-      "kind": "brief",
-      "title": "Disaster-Recovery Tabletop Templates for Small Platform Teams",
-      "url": "https://example.com/dr-tabletop-templates",
-      "source": "miniflux",
-      "brief": "A template library for DR tabletop exercises where only one piece earns its keep: a third-party-outage scenario with pre-written injects and a 30-minute timebox. The other four templates are filler.",
-      "shadow_score": 0.55
-    },
-    {
-      "id": "miniflux-8239",
-      "section": "ai-at-work",
-      "kind": "brief",
-      "title": "This Week in React #512",
-      "url": "https://example.com/this-week-in-react-512",
-      "source": "miniflux",
-      "brief": "The notable item in this newsletter issue is React's RSC caching RFC, which proposes default-caching fetches in both dev and prod with explicit invalidation. The community is split on whether defaults should ever cache.",
-      "shadow_score": 0.29
-    },
-    {
-      "id": "readeck-1088",
-      "section": "might-like",
-      "kind": "brief",
-      "title": "The Lost Art of the Memorandum: How Writers Kept Thinking Before Notebooks",
-      "url": "https://example.com/lost-art-of-the-memorandum",
-      "source": "readeck",
-      "brief": "Before personal notes were files, writers kept loose memorandums — one idea per slip, physically reshuffled while composing. The author argues the slip, not the notebook, was the real thinking tool.",
-      "shadow_score": 0.66
-    }
-  ]
+ "edition_date": "2026-10-25",
+ "items": [
+  {
+   "id": "miniflux-8123",
+   "section": "captured",
+   "kind": "captured",
+   "title": "Async Rust, Two Years In: What the Borrow Checker Actually Costs You",
+   "url": "https://example.com/async-rust-two-years-in",
+   "source": "miniflux",
+   "brief": "The async Rust ecosystem has settled on patterns that make cancellation safety tractable, and most complaints trace back to three specific footguns. A 14-minute read held for a full sitting.",
+   "captured_at": "2026-10-24T18:40:00Z",
+   "shadow_score": 0,
+   "tier": "lead"
+  },
+  {
+   "id": "readeck-1042",
+   "section": "captured",
+   "kind": "captured",
+   "title": "The Economics of Self-Hosting in 2026",
+   "url": "https://example.com/self-hosting-economics-2026",
+   "source": "readeck",
+   "brief": "A worked comparison of VPS pricing, electricity, and admin hours for a small self-hosted stack against equivalent managed services. The break-even point sits around six low-traffic services, after which owning the box wins on cost and control.",
+   "captured_at": "2026-10-24T21:05:00Z",
+   "shadow_score": 0,
+   "tier": "secondary"
+  },
+  {
+   "id": "miniflux-8201",
+   "section": "rust-os",
+   "kind": "deep-read",
+   "title": "A Filesystem in 1,000 Lines of Rust",
+   "url": "https://example.com/filesystem-1000-lines-rust",
+   "source": "miniflux",
+   "brief": "Log-structured layout, crash consistency, and exactly where the author cut corners — a worked filesystem built in a thousand lines of Rust.",
+   "shadow_score": 0.82,
+   "tier": "lead"
+  },
+  {
+   "id": "miniflux-8187",
+   "section": "rust-os",
+   "kind": "brief",
+   "title": "RustCGo: Calling Go From Rust Without the FFI Pain",
+   "url": "https://example.com/rustcgo-ffi",
+   "source": "miniflux",
+   "brief": "Calling Go from Rust via cgo costs roughly 200ns per crossing and drags a second garbage collector into the process. Benchmarks show it only pays off when one specific Go library is needed; otherwise pure Rust wins.",
+   "shadow_score": 0.41,
+   "tier": "secondary"
+  },
+  {
+   "id": "miniflux-8190",
+   "section": "rust-os",
+   "kind": "brief",
+   "title": "Scheduler Tickless Designs Compared",
+   "url": "https://example.com/tickless-schedulers",
+   "source": "miniflux",
+   "brief": "A fully tickless scheduler saves about 4% idle power across three hobby kernels but complicates timer handling. The hybrid design — tickless at idle, ticked under load — wins on both power and latency, and is what Linux already does.",
+   "shadow_score": 0.37,
+   "tier": "secondary"
+  },
+  {
+   "id": "miniflux-8225",
+   "section": "ai-at-work",
+   "kind": "deep-read",
+   "title": "What Teams Actually Measure When They Measure Agent Productivity",
+   "url": "https://example.com/agent-productivity-metrics",
+   "source": "miniflux",
+   "brief": "A four-metric frame for judging how much software agents actually deliver, drawn from teams that instrument their rollouts. Worth a long sitting.",
+   "shadow_score": 0.77,
+   "tier": "lead"
+  },
+  {
+   "id": "miniflux-8231",
+   "section": "ai-at-work",
+   "kind": "brief",
+   "title": "Disaster-Recovery Tabletop Templates for Small Platform Teams",
+   "url": "https://example.com/dr-tabletop-templates",
+   "source": "miniflux",
+   "brief": "A template library for DR tabletop exercises where only one piece earns its keep: a third-party-outage scenario with pre-written injects and a 30-minute timebox. The other four templates are filler.",
+   "shadow_score": 0.55,
+   "tier": "secondary"
+  },
+  {
+   "id": "miniflux-8239",
+   "section": "ai-at-work",
+   "kind": "brief",
+   "title": "This Week in React #512",
+   "url": "https://example.com/this-week-in-react-512",
+   "source": "miniflux",
+   "brief": "The notable item in this newsletter issue is React's RSC caching RFC, which proposes default-caching fetches in both dev and prod with explicit invalidation. The community is split on whether defaults should ever cache.",
+   "shadow_score": 0.29,
+   "tier": "secondary"
+  },
+  {
+   "id": "readeck-1088",
+   "section": "might-like",
+   "kind": "brief",
+   "title": "The Lost Art of the Memorandum: How Writers Kept Thinking Before Notebooks",
+   "url": "https://example.com/lost-art-of-the-memorandum",
+   "source": "readeck",
+   "brief": "Before personal notes were files, writers kept loose memorandums — one idea per slip, physically reshuffled while composing. The author argues the slip, not the notebook, was the real thinking tool.",
+   "shadow_score": 0.66,
+   "tier": "lead"
+  }
+ ]
 }
