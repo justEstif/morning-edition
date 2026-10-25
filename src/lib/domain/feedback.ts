@@ -12,19 +12,22 @@
      {"id":"e-<rand>","ts":"ISO-8601","schema_v":2,"session_id":"...",
       "item_id":"...","item_url":"...","source":"readeck|miniflux|hn",
       "edition_date":"YYYY-MM-DD",
-      "type":"verdict|click|read_progress|star|capture|highlight",
+      "type":"verdict|click|impression|read_progress|star|capture|highlight",
       ...type payload}
 
    PUBLIC API SURFACE vs TRUSTED SYNC PATH (enforced by type + validator):
-   the human-facing API accepts only verdict|click (plus legacy v1 vote|grade
-   rows). read_progress, star, capture and highlight are implicit signals and
-   ride the trusted direct-append sync path only (pipeline sync_signals.py,
-   session_id "sync-<origin>") — they are validated by validateSyncEvent,
-   which the public route never calls, and the public input union simply has
-   no member for them.
+   the human-facing API accepts verdict|click on /api/corrections and
+   impression batches on /api/impressions (both proxy-auth gated — public
+   visitors are never tracked). read_progress, star, capture and highlight
+   are implicit signals and ride the trusted direct-append sync path only
+   (pipeline sync_signals.py, session_id "sync-<origin>") — they are
+   validated by validateSyncEvent, which no public route ever calls, and
+   the public input unions simply have no member for them.
 
-   `skip` is derived downstream (presented >=2 editions, zero events) and is
-   never stored. */
+   Reader-signal schema additions (R2/R5, research t_54dfda6e): dwell is
+   client-captured and rides the PUBLIC path (validateDwell, its own route);
+   the derived `skip` is a STORED event (idempotent, confidence-weighted,
+   exposure-based thresholds) that rides the trusted sync path only. */
 import { DATE_RE } from "./edition.js";
 
 /* ----- Unions ----- */
@@ -34,16 +37,20 @@ export type Reason = "wrong-angle" | "already-read" | "wrong-source" | "dup" | "
 export type LedgerEventType =
   | "verdict"
   | "click"
+  | "impression"
+  | "dwell"
   | "read_progress"
   | "star"
   | "capture"
   | "highlight"
+  | "skip"
   | "vote"
   | "grade";
 /** Types the human-facing /api/corrections POST accepts (v2 + legacy v1). */
 export type PublicCorrectionType = "verdict" | "click" | "vote" | "grade";
-/** Implicit signal types — trusted sync path ONLY, never the public API. */
-export type SyncEventType = "read_progress" | "star" | "capture" | "highlight";
+/** Implicit signal types — trusted sync path ONLY, never the public API.
+ *  `skip` joins them: it is DERIVED (analysis/builder), never human-typed. */
+export type SyncEventType = "read_progress" | "star" | "capture" | "highlight" | "skip";
 
 export const VERDICT_VALUES: Verdict[] = ["deep-read", "skim", "drop"];
 export const REASONS: Reason[] = [
@@ -91,6 +98,58 @@ export interface ClickEvent extends Envelope {
   url: string;
 }
 
+/* Impression (viewport exposure, card t_41df1f78 / research R1): an item
+   counts as seen only when ≥EXPOSURE_RATIO of it was in the viewport,
+   held ≥EXPOSURE_MIN_MS. The client enforces the threshold before sending;
+   the server validator re-enforces the floor so sub-threshold rows can
+   never enter the ledger. One impression per item+session+edition — the
+   client dedupes, the server trusts the envelope's shape only. */
+export const EXPOSURE_RATIO = 0.5;
+export const EXPOSURE_MIN_MS = 500;
+/** An exposure can't be longer than an hour of continuous visibility. */
+const EXPOSURE_MAX_MS = 3_600_000;
+/** Hard cap on one /api/impressions batch (keepalive/sendBeacon bodies are
+ *  capped by the browser well below this anyway). */
+export const MAX_IMPRESSION_BATCH = 500;
+
+/** Why-shown + rubric score, logged when the explore-slot card lands
+ *  (research R3); optional until then — most impressions have none. */
+export interface ImpressionPropensity {
+  score: number;
+  why?: string;
+}
+
+/** v2 impression event: what was actually rendered and seen, where, how
+ *  long, and (later) why. `position` is 1-based within its section as
+ *  rendered (lead = captured #1, lead-side well = captured #2). */
+export interface ImpressionEvent extends Envelope {
+  type: "impression";
+  position: number;
+  section: string;
+  tier: string;
+  explore_flag?: boolean;
+  seen_ms: number;
+  propensity?: ImpressionPropensity;
+}
+
+/** Dwell longer than this is a lost tab, not reading (research R2: discard
+ *  open→return gaps >30min). Enforced by the validator. */
+export const MAX_DWELL_MS = 30 * 60 * 1000;
+
+/** v2 dwell event (research R2, card: dwell capture): open→return on a
+ *  click-through. The client pairs the click with the tab refocus/close and
+ *  sends the delta; the validator rejects gaps over MAX_DWELL_MS so lost
+ *  tabs can't masquerade as deep reading. The best-evidenced cheap implicit
+ *  signal — capture from day one, use in scoring only after audit gates. */
+export interface DwellEvent extends Envelope {
+  type: "dwell";
+  url: string;
+  /** return − open, in ms, 0 < dwell_ms <= MAX_DWELL_MS. */
+  dwell_ms: number;
+  /** When the outbound click opened (ISO-8601). */
+  opened_at: string;
+}
+
 /** v2 read_progress event (Readeck sync, by id). */
 export interface ReadProgressEvent extends Envelope {
   type: "read_progress";
@@ -123,6 +182,23 @@ export interface HighlightEvent extends Envelope {
   note?: string;
 }
 
+/** v2 skip event (research R5): the DERIVED negative, stored once
+ *  exposure-based thresholds pass — an item presented in >=2 editions with
+ *  real viewport exposure and zero engagement. Confidence-weighted: a skip
+ *  is a LOW-confidence negative (Hu/Koren/Volinsky) and must never weigh
+ *  like an explicit drop+reason. Idempotent per item+edition; written ONLY
+ *  on the trusted sync path (validator below). */
+export interface SkipEvent extends Envelope {
+  type: "skip";
+  origin: "derived";
+  /** 0..1 — confidence proportional to the exposure evidence. */
+  confidence: number;
+  /** How many editions presented it with zero engagement. */
+  impressions: number;
+  /** Total viewport exposure across those impressions, ms. */
+  seen_ms: number;
+}
+
 /** v1 legacy vote row (localStorage importer) — byte-identical schema. */
 export interface LegacyVoteEvent {
   ts: string;
@@ -144,12 +220,19 @@ export interface LegacyGradeEvent {
 }
 
 /** v2 events that only the trusted sync path may write. */
-export type SyncLedgerEvent = ReadProgressEvent | StarEvent | CaptureEvent | HighlightEvent;
+export type SyncLedgerEvent =
+  | ReadProgressEvent
+  | StarEvent
+  | CaptureEvent
+  | HighlightEvent
+  | SkipEvent;
 
 /** Any row in corrections.jsonl. */
 export type LedgerEvent =
   | VerdictEvent
   | ClickEvent
+  | ImpressionEvent
+  | DwellEvent
   | SyncLedgerEvent
   | LegacyVoteEvent
   | LegacyGradeEvent;
@@ -331,8 +414,14 @@ export function validateCorrection(body: unknown, deps: StampDeps): LedgerEvent 
 export function validateSyncEvent(body: unknown, deps: StampDeps): SyncLedgerEvent {
   if (!isPlainObject(body)) throw new Error("body must be a JSON object");
   const type = body.type;
-  if (type !== "read_progress" && type !== "star" && type !== "capture" && type !== "highlight") {
-    throw new Error("type must be read_progress|star|capture|highlight");
+  if (
+    type !== "read_progress" &&
+    type !== "star" &&
+    type !== "capture" &&
+    type !== "highlight" &&
+    type !== "skip"
+  ) {
+    throw new Error("type must be read_progress|star|capture|highlight|skip");
   }
   const sessionId = bounded(body.session_id, 100);
   if (!sessionId || !sessionId.startsWith("sync-"))
@@ -367,6 +456,30 @@ export function validateSyncEvent(body: unknown, deps: StampDeps): SyncLedgerEve
   if (type === "capture") {
     return { ...base, type, origin: "readeck" };
   }
+  if (type === "skip") {
+    const confidence = body.confidence;
+    if (
+      typeof confidence !== "number" ||
+      !Number.isFinite(confidence) ||
+      confidence < 0 ||
+      confidence > 1
+    )
+      throw new Error("skip requires confidence 0-1");
+    const impressions = body.impressions;
+    if (typeof impressions !== "number" || !Number.isInteger(impressions) || impressions < 1)
+      throw new Error("skip requires integer impressions >= 1");
+    const seenMs = body.seen_ms;
+    if (typeof seenMs !== "number" || !Number.isFinite(seenMs) || seenMs < 0)
+      throw new Error("skip requires seen_ms >= 0");
+    return {
+      ...base,
+      type,
+      origin: "derived",
+      confidence,
+      impressions,
+      seen_ms: seenMs,
+    };
+  }
   // highlight
   const annotationId = bounded(body.annotation_id, 200);
   if (!annotationId) throw new Error("highlight requires annotation_id");
@@ -382,6 +495,135 @@ export function validateSyncEvent(body: unknown, deps: StampDeps): SyncLedgerEve
   const note = bounded(body.note, 2000);
   if (note) out.note = note;
   return out;
+}
+
+/** Validate one impression off the PUBLIC surface (wire body → canonical
+ *  ImpressionEvent, throws on anything else). The exposure threshold is the
+ *  domain's (EXPOSURE_RATIO / EXPOSURE_MIN_MS): the client qualifies
+ *  exposures before sending, and this validator re-enforces the seen_ms
+ *  floor so a broken client can't ledger sub-threshold rows. explore_flag /
+ *  propensity are accepted now for when the explore-slot card lands
+ *  (research R3) — absent on every impression until then. */
+export function validateImpression(body: unknown, deps: StampDeps): ImpressionEvent {
+  if (!isPlainObject(body)) throw new Error("impression must be a JSON object");
+  const sessionId = bounded(body.session_id, 100);
+  if (!sessionId) throw new Error("session_id required (v2 envelope)");
+  const itemId = bounded(body.item_id, 200);
+  if (!itemId) throw new Error("item_id required");
+  const editionDate = body.edition_date;
+  if (typeof editionDate !== "string" || !DATE_RE.test(editionDate))
+    throw new Error("edition_date must be YYYY-MM-DD");
+  const position = body.position;
+  if (
+    typeof position !== "number" ||
+    !Number.isInteger(position) ||
+    position < 1 ||
+    position > 10000
+  )
+    throw new Error("position must be an integer >= 1");
+  const section = bounded(body.section, 40);
+  if (!section) throw new Error("section required");
+  const tier = bounded(body.tier, 40);
+  if (!tier) throw new Error("tier required");
+  const seenMs = body.seen_ms;
+  if (
+    typeof seenMs !== "number" ||
+    !Number.isFinite(seenMs) ||
+    seenMs < EXPOSURE_MIN_MS ||
+    seenMs > EXPOSURE_MAX_MS
+  ) {
+    throw new Error(
+      `seen_ms must be ${EXPOSURE_MIN_MS}-${EXPOSURE_MAX_MS} ` +
+        `(an impression is a >=${EXPOSURE_RATIO * 100}% viewport exposure held >=${EXPOSURE_MIN_MS}ms)`,
+    );
+  }
+  if (body.explore_flag !== undefined && typeof body.explore_flag !== "boolean")
+    throw new Error("explore_flag must be a boolean");
+
+  let propensity: ImpressionPropensity | undefined;
+  if (body.propensity !== undefined && body.propensity !== null) {
+    if (!isPlainObject(body.propensity)) throw new Error("propensity must be an object");
+    const score = body.propensity.score;
+    if (typeof score !== "number" || !Number.isFinite(score))
+      throw new Error("propensity.score must be a finite number");
+    propensity = { score };
+    const why = bounded(body.propensity.why, 500);
+    if (why) propensity.why = why;
+  }
+
+  const out: ImpressionEvent = {
+    id: deps.newId(),
+    ts: deps.now(),
+    schema_v: 2,
+    session_id: sessionId,
+    item_id: itemId,
+    item_url: bounded(body.item_url, 2000),
+    source: bounded(body.source, 40),
+    edition_date: editionDate,
+    type: "impression",
+    position,
+    section,
+    tier,
+    seen_ms: seenMs,
+  };
+  if (body.explore_flag === true) out.explore_flag = true;
+  if (propensity) out.propensity = propensity;
+  return out;
+}
+
+/** Validate a batched /api/impressions POST body ({events: [...]}) — every
+ *  event must validate or the whole batch throws (all-or-nothing, the same
+ *  shape-error → 400 contract as the corrections route). */
+export function validateImpressionBatch(body: unknown, deps: StampDeps): ImpressionEvent[] {
+  if (!isPlainObject(body)) throw new Error("body must be a JSON object");
+  if (!Array.isArray(body.events)) throw new Error("body must be {events: [...]}");
+  if (body.events.length === 0) throw new Error("events must not be empty");
+  if (body.events.length > MAX_IMPRESSION_BATCH)
+    throw new Error(`batch too large (max ${MAX_IMPRESSION_BATCH} events)`);
+  return body.events.map((raw) => validateImpression(raw, deps));
+}
+
+/** Validate one dwell event off the PUBLIC surface (wire body → canonical
+ *  DwellEvent, throws on anything else). Enforces the R2 contract: 0 <
+ *  dwell_ms <= MAX_DWELL_MS — longer gaps are lost tabs, not reading, and
+ *  are rejected so the capture client retries as "lost" instead of ledgering
+ *  a false deep-read signal. */
+export function validateDwell(body: unknown, deps: StampDeps): DwellEvent {
+  if (!isPlainObject(body)) throw new Error("dwell must be a JSON object");
+  const sessionId = bounded(body.session_id, 100);
+  if (!sessionId) throw new Error("session_id required (v2 envelope)");
+  const itemId = bounded(body.item_id, 200);
+  if (!itemId) throw new Error("item_id required");
+  const editionDate = body.edition_date;
+  if (typeof editionDate !== "string" || !DATE_RE.test(editionDate))
+    throw new Error("edition_date must be YYYY-MM-DD");
+  const url = bounded(body.url, 2000);
+  if (!url) throw new Error("dwell requires url");
+  const dwellMs = body.dwell_ms;
+  if (
+    typeof dwellMs !== "number" ||
+    !Number.isFinite(dwellMs) ||
+    dwellMs <= 0 ||
+    dwellMs > MAX_DWELL_MS
+  ) {
+    throw new Error(`dwell_ms must be 0-${MAX_DWELL_MS} (longer gaps are lost tabs, not reading)`);
+  }
+  if (typeof body.opened_at !== "string" || body.opened_at.length === 0)
+    throw new Error("dwell requires opened_at (ISO-8601 of the outbound click)");
+  return {
+    id: deps.newId(),
+    ts: deps.now(),
+    schema_v: 2,
+    session_id: sessionId,
+    item_id: itemId,
+    item_url: bounded(body.item_url, 2000),
+    source: bounded(body.source, 40),
+    edition_date: editionDate,
+    type: "dwell",
+    url,
+    dwell_ms: dwellMs,
+    opened_at: body.opened_at,
+  };
 }
 
 /** Referential validation (pure core): a v2 event must reference an item that
