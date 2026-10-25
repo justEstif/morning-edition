@@ -1,5 +1,6 @@
 <script lang="ts">
 	import '../../app.css';
+	import { impression } from '$lib/impressions.js';
 	import type { PageData } from './$types.js';
 
 	let { data }: { data: PageData } = $props();
@@ -42,8 +43,18 @@
 			<div class="topic-box">
 				<h2>{topic.title}</h2>
 				<ul>
-					{#each topic.items as item (item.id)}
-						<li>
+					{#each topic.items as item, j (item.id)}
+						<li
+							use:impression={{
+								item_id: item.id,
+								item_url: item.url,
+								source: item.source,
+								edition_date: d.date,
+								section: topic.key,
+								tier: item.tier,
+								position: j + 1
+							}}
+						>
 							<span class="mk">{item.mark}</span>
 							<a href={item.url}>{item.title}</a>
 							<span class="src">{item.kind} · via {item.source}</span>

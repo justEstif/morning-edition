@@ -59,13 +59,28 @@ are new adapters; the domain doesn't change.
     `star`, `capture`, `highlight` — the last synced one-per-annotation
     from Readeck with `annotation_id`/`text`/`note`/`created`, joined by
     readeck item id) are synced in by the pipeline; `skip` is derived
-    downstream and never stored. The human-facing API accepts only
-    `verdict|click`; implicit types ride the trusted sync path. Legacy v1
+    downstream and never stored. The human-facing corrections API accepts
+    only `verdict|click`; impressions POST to their own route; implicit
+    types ride the trusted sync path. Legacy v1
     bodies (`{"type":"vote|grade","value":"up|down|deep-read|skim|capture",...}`)
     are still accepted and stay readable via `schema_v`.
     A v2 event whose `item_id` is absent from its `edition_date`'s edition is
     rejected (400) and logged to `rejections.jsonl` — test/typo rows never
     reach the ledger.
+  - `POST /api/impressions` — append a batch of viewport-exposure events to
+    the same JSONL ledger (card t_41df1f78, research R1: the denominator for
+    every engagement rate). Body `{events: [...]}`; each event carries the
+    v2 envelope plus `position` (1-based within its section as rendered),
+    `section`, `tier`, `seen_ms`, and later `explore_flag`/`propensity`
+    (explore-slot card). An impression is a ≥50% viewport exposure held
+    ≥500ms — the thresholds live in the domain
+    (`EXPOSURE_RATIO`/`EXPOSURE_MIN_MS`); the client qualifies + dedupes
+    (one impression per item+session+edition) and flushes batches via
+    `sendBeacon` on visibilitychange/pagehide, the server re-enforces the
+    floor. Session-gated exactly like `POST /api/corrections` — public
+    visitors are never tracked. Same rejection contract: bad shape → 400;
+    an event whose `item_id` is absent from its edition → 400 for the whole
+    batch (all-or-nothing) + `rejections.jsonl` rows.
   - `GET /api/corrections?date=` — ledger count + latest value per item
     (verdict/reason/ev; legacy vote/grade rows remain readable).
   - `GET /api/edition?date=YYYY-MM-DD` — raw edition JSON (default: latest).

@@ -65,6 +65,8 @@ export const load: PageServerLoad = async ({ url }) => {
       mark: markFor(item).mark,
       source: item.source,
       kind: markFor(item).label,
+      // raw builder kind — the impression event's tier (card t_41df1f78)
+      tier: item.kind,
     })),
   }));
   const rows = await highlights.load();

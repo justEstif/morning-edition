@@ -2,6 +2,7 @@
 	import '../app.css';
 	import { markFor, widthClass } from '$lib/domain/edition.js';
 	import type { EditionItem } from '$lib/domain/edition.js';
+	import { impression } from '$lib/impressions.js';
 	import type { PageData } from './$types.js';
 
 	let { data }: { data: PageData } = $props();
@@ -10,8 +11,23 @@
 	/* Grading-desk v2: the inline vote pass is gone — its editorial signal is a
 	   verdict at the grading desk. What the edition page records is implicit:
 	   click-throughs POST a v2 `click` event (keepalive so the POST survives
-	   the navigation). Existing state stays server-side, any device. */
+	   the navigation) and viewport exposures POST `impression` batches
+	   (card t_41df1f78). Existing state stays server-side, any device. */
 	const sessionId = crypto.randomUUID();
+
+	/* Impression capture: lead + lead-side well are captured #1/#2, so the
+	   items rendered in the Captured section continue at #3. */
+	function impressionInfo(item: EditionItem, sectionKey: string, position: number) {
+		return {
+			item_id: item.id,
+			item_url: item.url,
+			source: item.source,
+			edition_date: ed.date,
+			section: sectionKey,
+			tier: item.kind,
+			position
+		};
+	}
 
 	/* Folds print OPEN: beforeprint opens every fold (restored after). The
 	   @media print ::details-content rule covers engines where the event
@@ -73,14 +89,14 @@
 	{#if ed.lead}
 		{@const lead = ed.lead}
 		<div class="lead">
-			<div class="lead-main">
+			<div class="lead-main" use:impression={impressionInfo(lead, 'captured', 1)}>
 				<div class="cap">Captured — you saved this yesterday, from {lead.source}</div>
 				<h2><a href={lead.url} onclick={() => trackClick(lead)}>{lead.title}</a></h2>
 				<p class="deck">{lead.brief || lead.title}</p>
 			</div>
 			{#if ed.leadSide}
 				{@const leadSide = ed.leadSide}
-				<div class="lead-side1 well">
+				<div class="lead-side1 well" use:impression={impressionInfo(leadSide, 'captured', 2)}>
 					<div class="cap">Also captured</div>
 					<h3><a href={leadSide.url} onclick={() => trackClick(leadSide)}>{leadSide.title}</a></h3>
 					<p>{leadSide.brief || leadSide.title}</p>
@@ -100,7 +116,8 @@
 			<div class="cols">
 				{#each section.items as item, i (item.id)}
 					{@const m = markFor(item)}
-					<div class="item {widthClass(section, i)}">
+					{@const pos = section.key === 'captured' ? i + 3 : i + 1}
+					<div class="item {widthClass(section, i)}" use:impression={impressionInfo(item, section.key, pos)}>
 						<h3><a href={item.url} onclick={() => trackClick(item)}>{item.title}</a></h3>
 						{#if item.brief}
 							<!-- the fold: the item's actual brief, one typographic tap away -->

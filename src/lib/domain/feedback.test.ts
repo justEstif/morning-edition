@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   attachFlipMs,
+  EXPOSURE_MIN_MS,
   referentiallyValid,
   rejectionRecordFor,
   summarizeCorrections,
   validateCorrection,
+  validateImpression,
+  validateImpressionBatch,
   validateSyncEvent,
   type LedgerEvent,
   type StampDeps,
@@ -361,5 +364,120 @@ describe("summarizeCorrections — latest event per item wins", () => {
       count: 1,
       last: { "readeck-1": { verdict: "deep-read", reason: "wrong-angle", ev: "e-1" } },
     });
+  });
+});
+
+const IMPRESSION_BODY = {
+  session_id: "sess-abc",
+  item_id: "readeck-1",
+  item_url: "https://example.com/1",
+  source: "readeck",
+  edition_date: "2026-10-25",
+  position: 2,
+  section: "captured",
+  tier: "captured",
+  seen_ms: 1400,
+};
+
+describe("validateImpression — viewport-exposure events (card t_41df1f78)", () => {
+  it("canonicalizes the envelope: injected id/ts, schema_v 2, exposure payload", () => {
+    expect(validateImpression(IMPRESSION_BODY, deps)).toEqual({
+      id: "e-testid0000",
+      ts: "2026-10-25T12:00:00.000Z",
+      schema_v: 2,
+      session_id: "sess-abc",
+      item_id: "readeck-1",
+      item_url: "https://example.com/1",
+      source: "readeck",
+      edition_date: "2026-10-25",
+      type: "impression",
+      position: 2,
+      section: "captured",
+      tier: "captured",
+      seen_ms: 1400,
+    });
+  });
+
+  it("keeps explore_flag + propensity when the explore-slot card has landed", () => {
+    const ev = validateImpression(
+      {
+        ...IMPRESSION_BODY,
+        explore_flag: true,
+        propensity: { score: 0.42, why: "lowest-rubric-coverage topic" },
+      },
+      deps,
+    );
+    expect(ev.explore_flag).toBe(true);
+    expect(ev.propensity).toEqual({ score: 0.42, why: "lowest-rubric-coverage topic" });
+    // explore_flag:false is dropped (absent until the explore card lands)
+    expect(validateImpression({ ...IMPRESSION_BODY, explore_flag: false }, deps).explore_flag).toBe(
+      undefined,
+    );
+  });
+
+  it("rejects sub-threshold exposures — the domain owns the >=500ms floor", () => {
+    expect(() =>
+      validateImpression({ ...IMPRESSION_BODY, seen_ms: EXPOSURE_MIN_MS - 1 }, deps),
+    ).toThrow(/seen_ms must be 500-/);
+    expect(() => validateImpression({ ...IMPRESSION_BODY, seen_ms: 0 }, deps)).toThrow(/seen_ms/);
+    expect(() => validateImpression({ ...IMPRESSION_BODY, seen_ms: "1400" }, deps)).toThrow(
+      /seen_ms/,
+    );
+    expect(() => validateImpression({ ...IMPRESSION_BODY, seen_ms: 3_600_001 }, deps)).toThrow(
+      /seen_ms/,
+    );
+  });
+
+  it("rejects bad envelope/position/section/tier/explore_flag/propensity", () => {
+    expect(() => validateImpression({ ...IMPRESSION_BODY, session_id: "" }, deps)).toThrow(
+      /session_id required/,
+    );
+    expect(() => validateImpression({ ...IMPRESSION_BODY, item_id: "" }, deps)).toThrow(/item_id/);
+    expect(() => validateImpression({ ...IMPRESSION_BODY, edition_date: "10-25" }, deps)).toThrow(
+      /YYYY-MM-DD/,
+    );
+    expect(() => validateImpression({ ...IMPRESSION_BODY, position: 0 }, deps)).toThrow(/position/);
+    expect(() => validateImpression({ ...IMPRESSION_BODY, position: 1.5 }, deps)).toThrow(
+      /position/,
+    );
+    expect(() => validateImpression({ ...IMPRESSION_BODY, section: "" }, deps)).toThrow(/section/);
+    expect(() => validateImpression({ ...IMPRESSION_BODY, tier: "" }, deps)).toThrow(/tier/);
+    expect(() => validateImpression({ ...IMPRESSION_BODY, explore_flag: "yes" }, deps)).toThrow(
+      /explore_flag/,
+    );
+    expect(() =>
+      validateImpression({ ...IMPRESSION_BODY, propensity: { score: "high" } }, deps),
+    ).toThrow(/propensity.score/);
+    expect(() => validateImpression({ ...IMPRESSION_BODY, propensity: "0.9" }, deps)).toThrow(
+      /propensity/,
+    );
+    expect(() => validateImpression("nope", deps)).toThrow(/JSON object/);
+  });
+
+  it("referentially validates like every v2 event (item must be in the edition)", () => {
+    const ev = validateImpression(IMPRESSION_BODY, deps);
+    expect(referentiallyValid(ev, new Set(["readeck-1"]))).toBe(true);
+    expect(referentiallyValid(ev, new Set(["miniflux-9"]))).toBe(false);
+    expect(referentiallyValid(ev, null)).toBe(true); // fail-open: no edition on disk
+    const rec = rejectionRecordFor(ev, deps);
+    expect(rec.reason).toBe("item_id readeck-1 absent from edition 2026-10-25");
+    expect(rec).toMatchObject({ session_id: "sess-abc", type: "impression" });
+  });
+});
+
+describe("validateImpressionBatch — batched POST body", () => {
+  it("validates every event or throws; stamps each", () => {
+    const events = validateImpressionBatch(
+      { events: [IMPRESSION_BODY, { ...IMPRESSION_BODY, item_id: "miniflux-2", position: 1 }] },
+      deps,
+    );
+    expect(events).toHaveLength(2);
+    expect(events.every((e) => e.type === "impression" && e.schema_v === 2)).toBe(true);
+    expect(() =>
+      validateImpressionBatch({ events: [IMPRESSION_BODY, { item_id: "x" }] }, deps),
+    ).toThrow();
+    expect(() => validateImpressionBatch({ events: [] }, deps)).toThrow(/must not be empty/);
+    expect(() => validateImpressionBatch({ nope: true }, deps)).toThrow(/\{events: \[\.\.\.\]\}/);
+    expect(() => validateImpressionBatch([IMPRESSION_BODY], deps)).toThrow(/JSON object/);
   });
 });
