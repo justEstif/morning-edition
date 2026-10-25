@@ -80,7 +80,7 @@ export function shapeEdition(raw: RawEdition | null): ShapedEdition {
 }
 
 /** Column width class for an item inside its section (001e: w4/w6). */
-export function widthClass(section: ShapedSection, index: number): string {
+export function widthClass(section: ShapedSection, _index: number): string {
 	if (section.items.length === 1 || section.items.length === 2) return 'w6';
 	return 'w4';
 }

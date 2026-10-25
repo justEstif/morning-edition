@@ -42,7 +42,7 @@
     var found = null;
     lines().forEach(function (line) {
       var ev;
-      try { ev = JSON.parse(line); } catch (err) { return; }
+      try { ev = JSON.parse(line); } catch { return; }
       if (ev.item_id === itemId && ev.type === type) { found = ev.value; }
     });
     return found;
