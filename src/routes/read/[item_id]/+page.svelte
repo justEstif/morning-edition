@@ -1,5 +1,5 @@
 <script lang="ts">
-	import '../../app.css';
+	import '../../../app.css';
 	import NightToggle from '$lib/NightToggle.svelte';
 	import { markFor } from '$lib/domain/edition.js';
 	import type { Reason, Verdict, VerdictPostBody } from '$lib/domain/feedback.js';
@@ -159,6 +159,8 @@
 		<article class="reader-main" use:impression={impressionInfo()} data-item-id={d.item.id}>
 			<p class="kicker"><b>{m.mark} {m.label}</b> · via {d.item.source}{#if d.item.captured_at} · captured {d.item.captured_at.slice(0, 10)}{/if}</p>
 			<h1 class="display">{d.item.title}</h1>
+			<!-- Extension point (depth ladder, t_2f96c207): a pre-read tier slots
+			     HERE, between headline and body — the grid below is unaffected. -->
 
 			{#if d.text}
 				<div class="reader-body">
