@@ -1,0 +1,80 @@
+/* /login — the private door. Same 001e paper: B&W, IM Fell, typographic
+   fields (bottom rule only, no chrome boxes). */
+.login {
+  grid-column: 4 / span 6;
+  padding: 44px 0 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+.masthead .under a {
+  font-style: italic;
+}
+.fld {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.fld span {
+  font-family: var(--sc);
+  font-size: 11px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--mid);
+}
+.fld input {
+  font-family: var(--serif);
+  font-size: 18px;
+  color: var(--ink);
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--ink);
+  padding: 4px 2px;
+  outline: none;
+}
+.fld input:focus {
+  border-bottom: 2px solid var(--ink);
+}
+.login-btn {
+  align-self: flex-start;
+  font-family: var(--sc);
+  font-size: 14px;
+  letter-spacing: 3px;
+  color: var(--ink);
+  background: none;
+  border: none;
+  border-top: 2px solid var(--ink);
+  border-bottom: 1px solid var(--ink);
+  padding: 8px 18px;
+  margin-top: 6px;
+  cursor: pointer;
+}
+.login-btn:hover {
+  text-decoration: underline;
+}
+.login-btn:disabled {
+  color: var(--rule);
+  border-color: var(--rule);
+  cursor: not-allowed;
+  text-decoration: none;
+}
+.login-err {
+  margin: 0;
+  font-style: italic;
+  font-size: 14px;
+  color: var(--ink);
+}
+.login-err::before {
+  content: "† ";
+}
+.login-note {
+  margin: 0;
+  font-style: italic;
+  font-size: 12px;
+  color: var(--mid);
+}
+@media (max-width: 900px) {
+  .login {
+    grid-column: 1 / -1;
+  }
+}
