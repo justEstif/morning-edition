@@ -8,50 +8,53 @@
    the server rejects is reported, not fatal. */
 
 const args = process.argv.slice(2);
-const file = args.find((a) => !a.startsWith('--'));
+const file = args.find((a) => !a.startsWith("--"));
 function opt(name) {
-	const i = args.indexOf('--' + name);
-	return i >= 0 ? args[i + 1] : undefined;
+  const i = args.indexOf("--" + name);
+  return i >= 0 ? args[i + 1] : undefined;
 }
 
-const base = opt('url') || process.env.ME_URL || 'http://127.0.0.1:3000';
-const auth = opt('auth') || process.env.ME_AUTH;
+const base = opt("url") || process.env.ME_URL || "http://127.0.0.1:3000";
+const auth = opt("auth") || process.env.ME_AUTH;
 
 if (!file) {
-	console.error('usage: npm run import-votes -- <export.jsonl> [--url URL] [--auth user:pass]');
-	process.exit(2);
+  console.error("usage: npm run import-votes -- <export.jsonl> [--url URL] [--auth user:pass]");
+  process.exit(2);
 }
 
-const { readFile } = await import('node:fs/promises');
-const text = await readFile(file, 'utf8');
+const { readFile } = await import("node:fs/promises");
+const text = await readFile(file, "utf8");
 let events;
-if (text.trim().startsWith('[')) {
-	events = JSON.parse(text);
+if (text.trim().startsWith("[")) {
+  events = JSON.parse(text);
 } else {
-	events = text.split('\n').filter((l) => l.trim()).map((l) => JSON.parse(l));
+  events = text
+    .split("\n")
+    .filter((l) => l.trim())
+    .map((l) => JSON.parse(l));
 }
 
 let ok = 0;
 let failed = 0;
 for (const ev of events) {
-	const headers = { 'content-type': 'application/json' };
-	if (auth) headers.authorization = 'Basic ' + Buffer.from(auth).toString('base64');
-	const res = await fetch(base + '/api/corrections', {
-		method: 'POST',
-		headers,
-		body: JSON.stringify({
-			type: ev.type,
-			value: ev.value,
-			item_id: ev.item_id,
-			edition_date: ev.edition_date
-		})
-	});
-	if (res.ok) {
-		ok++;
-	} else {
-		failed++;
-		console.error(`  rejected: ${JSON.stringify(ev)} -> ${res.status} ${await res.text()}`);
-	}
+  const headers = { "content-type": "application/json" };
+  if (auth) headers.authorization = "Basic " + Buffer.from(auth).toString("base64");
+  const res = await fetch(base + "/api/corrections", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      type: ev.type,
+      value: ev.value,
+      item_id: ev.item_id,
+      edition_date: ev.edition_date,
+    }),
+  });
+  if (res.ok) {
+    ok++;
+  } else {
+    failed++;
+    console.error(`  rejected: ${JSON.stringify(ev)} -> ${res.status} ${await res.text()}`);
+  }
 }
 console.log(`imported ${ok}/${events.length} feedback events into ${base} (${failed} rejected)`);
 process.exit(failed && !ok ? 1 : 0);
