@@ -16,6 +16,14 @@
 /** ISO calendar date, "YYYY-MM-DD". */
 export const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+/** Why-shown metadata riding every edition item (research R3): the rubric
+ *  score at presentation time + why it was shown ("rubric", or the explore
+ *  reason for explore slots). Data-only — nothing renders it. */
+export interface ItemPropensity {
+  score: number;
+  why?: string;
+}
+
 /** One item as it appears in raw edition JSON (builder output). */
 export interface EditionItem {
   id: string;
@@ -26,6 +34,11 @@ export interface EditionItem {
   kind: string;
   brief?: string;
   captured_at?: string;
+  /** Explore-slot marker (research R3, shadow-mode): data only, never
+   *  rendered — the paper must not feel like an algorithm apologizing. */
+  explore_flag?: boolean;
+  /** Why-shown log: rubric score + reason, on every item. */
+  propensity?: ItemPropensity;
 }
 
 /** Raw edition JSON written by the builder. */
@@ -80,8 +93,11 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
 
 /** Validate one edition item (parsed wire JSON → EditionItem | null).
  *  Required string fields: id, title, url, source, section, kind; optional
- *  string fields: brief, captured_at. Unknown extra keys are tolerated —
- *  the builder may carry fields this app never renders. */
+ *  string fields: brief, captured_at; optional explore metadata:
+ *  explore_flag (boolean) + propensity ({score: finite number, why?:
+ *  string}) — malformed explore metadata invalidates the item (parsed,
+ *  never trusted). Unknown extra keys are tolerated — the builder may
+ *  carry fields this app never renders. */
 export function parseEditionItem(raw: unknown): EditionItem | null {
   if (!isPlainObject(raw)) return null;
   for (const key of ["id", "title", "url", "source", "section", "kind"]) {
@@ -89,6 +105,13 @@ export function parseEditionItem(raw: unknown): EditionItem | null {
   }
   for (const key of ["brief", "captured_at"]) {
     if (raw[key] !== undefined && typeof raw[key] !== "string") return null;
+  }
+  if (raw.explore_flag !== undefined && typeof raw.explore_flag !== "boolean") return null;
+  if (raw.propensity !== undefined && raw.propensity !== null) {
+    if (!isPlainObject(raw.propensity)) return null;
+    if (typeof raw.propensity.score !== "number" || !Number.isFinite(raw.propensity.score))
+      return null;
+    if (raw.propensity.why !== undefined && typeof raw.propensity.why !== "string") return null;
   }
   return raw as unknown as EditionItem;
 }

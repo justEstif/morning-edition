@@ -65,7 +65,9 @@
 								edition_date: d.date,
 								section: topic.key,
 								tier: item.tier,
-								position: j + 1
+								position: j + 1,
+								...(item.explore_flag === true ? { explore_flag: true } : {}),
+								...(item.propensity ? { propensity: item.propensity } : {})
 							}}
 						>
 							<span class="mk">{item.mark}</span>

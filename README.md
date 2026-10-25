@@ -120,7 +120,9 @@ See `data/demo/edition-demo.json`:
       "source": "miniflux | readeck",
       "brief": "2-3 self-contained sentences; REQUIRED when kind=brief, must NOT be a teaser",
       "captured_at": "ISO-8601, captured items only",
-      "shadow_score": 0.0
+      "shadow_score": 0.0,
+      "explore_flag": true,
+      "propensity": { "score": 0.4, "why": "rubric | explore:low-score | explore:unseen-source" }
     }
   ]
 }
@@ -132,6 +134,18 @@ feature; the second fills the "Also captured" well; the rest fill the Captured
 section. Marks are typographic only: `†` deep read, `‡` brief, `❦` captured,
 `✳` suggested (might-like items). `shadow_score` is engine metadata and is
 never rendered; placement is never driven by it.
+
+Explore slots + propensity (research R3, SHADOW-MODE): the builder asks the
+domain's pure `selectExplore` (`src/lib/domain/explore.ts`, `Explorer` port in
+`ports.ts`) to flag 1–3 items per edition as explore picks — deliberately
+outside the top lanes (low rubric score, unseen sources preferred), seeded by
+`edition_date` so rebuilds are deterministic. Every item carries `propensity`
+(rubric score + why shown) and explore picks `explore_flag: true`; both ride
+impression events (`src/lib/domain/feedback.ts ImpressionEvent`) and nothing
+else. Explore items render as normal tiers — no badge, the flag lives in data
+only — and NOTHING consumes these fields for ranking yet; the per-edition
+decision log lives beside the edition (`editions/<date>/explore-decisions.json`,
+written by the pipeline builder) for audit.
 
 Folds: on screen each item's brief sits behind a typographic fold (a ❧ fleuron
 + small-caps "unfold the brief", `<details>`-based, no UI chrome); the /panel

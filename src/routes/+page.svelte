@@ -18,7 +18,9 @@
 	const sessionId = crypto.randomUUID();
 
 	/* Impression capture: lead + lead-side well are captured #1/#2, so the
-	   items rendered in the Captured section continue at #3. */
+	   items rendered in the Captured section continue at #3. explore_flag /
+	   propensity ride along when the builder attached them (research R3,
+	   shadow-mode) — the why-shown log; nothing visual changes. */
 	function impressionInfo(item: EditionItem, sectionKey: string, position: number) {
 		return {
 			item_id: item.id,
@@ -27,7 +29,9 @@
 			edition_date: ed.date,
 			section: sectionKey,
 			tier: item.kind,
-			position
+			position,
+			...(item.explore_flag === true ? { explore_flag: true } : {}),
+			...(item.propensity ? { propensity: item.propensity } : {})
 		};
 	}
 

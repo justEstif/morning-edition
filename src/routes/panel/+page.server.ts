@@ -67,6 +67,9 @@ export const load: PageServerLoad = async ({ url }) => {
       kind: markFor(item).label,
       // raw builder kind — the impression event's tier (card t_41df1f78)
       tier: item.kind,
+      // explore metadata rides the impression, never the render (R3, shadow)
+      ...(item.explore_flag === true ? { explore_flag: true } : {}),
+      ...(item.propensity ? { propensity: item.propensity } : {}),
     })),
   }));
   const rows = await highlights.load();

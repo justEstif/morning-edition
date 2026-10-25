@@ -57,6 +57,30 @@ describe("parseEditionItem", () => {
     expect(parseEditionItem({ id: "x" })).toBeNull();
     expect(parseEditionItem({ ...VALID.items[0], brief: 9 })).toBeNull();
   });
+
+  it("accepts explore metadata (flag + propensity) and keeps it on the item", () => {
+    const item = parseEditionItem({
+      ...VALID.items[2],
+      explore_flag: true,
+      propensity: { score: 0.4, why: "explore:unseen-source" },
+    });
+    expect(item).not.toBeNull();
+    expect(item!.explore_flag).toBe(true);
+    expect(item!.propensity).toEqual({ score: 0.4, why: "explore:unseen-source" });
+  });
+
+  it("rejects malformed explore metadata", () => {
+    expect(parseEditionItem({ ...VALID.items[0], explore_flag: "yes" })).toBeNull();
+    expect(parseEditionItem({ ...VALID.items[0], propensity: "high" })).toBeNull();
+    expect(parseEditionItem({ ...VALID.items[0], propensity: { score: "0.4" } })).toBeNull();
+    expect(parseEditionItem({ ...VALID.items[0], propensity: { score: NaN } })).toBeNull();
+    expect(parseEditionItem({ ...VALID.items[0], propensity: { score: 0.4, why: 7 } })).toBeNull();
+  });
+
+  it("tolerates items without explore metadata (pre-R3 editions stay valid)", () => {
+    expect(parseEditionItem(VALID.items[0])!.propensity).toBeUndefined();
+    expect(parseEditionItem(VALID.items[0])!.explore_flag).toBeUndefined();
+  });
 });
 
 describe("parseEdition", () => {

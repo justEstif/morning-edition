@@ -8,8 +8,18 @@
    feedback.ts / edition.ts). */
 import type { RawEdition } from "./edition.js";
 import type { HighlightRow, LedgerEvent, RejectionRecord, VerdictEvent } from "./feedback.js";
+import type { ExploreCandidate, ExplorePick } from "./explore.js";
+import type { PoolCandidate } from "./pool.js";
 
 export type { RejectionRecord };
+
+/** The explore-slot decision (research R3, card t_889bc508). Unlike the I/O
+ *  ports below this is a PURE function contract: given the candidate pool
+ *  with current rubric scores and the edition-date seed, return the 1–3
+ *  explore picks. domain/explore.ts's selectExplore is the canonical
+ *  implementation; the builder is just an adapter calling it. SHADOW-MODE:
+ *  nothing consumes the picks for ranking yet. */
+export type Explorer = (candidates: ExploreCandidate[], editionDate: string) => ExplorePick[];
 
 /** Edition JSON access (read-only — the builder is the source of truth and
  *  nothing in this app ever writes edition JSON). */
@@ -49,10 +59,23 @@ export interface CorrectionSink {
   ): Promise<VerdictEvent | null>;
 }
 
+/** Read-only view of the persistent candidate pool (pool.json on the
+ *  volume, written by the pipeline's fetchers; the builder marks rows used
+ *  across the day boundary). Consumers MUST recompute state with the
+ *  domain's effectiveState — the stored `state` is only a write-time cache
+ *  and time moves on between writes. This is the seam the explore slot
+ *  (domain/explore.ts) reads through — no direct file reads. */
+export interface PoolStore {
+  /** All pool rows, file order. Absent/corrupt file → [] (an empty pool
+   *  just means nothing to explore). */
+  load(): Promise<PoolCandidate[]>;
+}
+
 /** Aggregate of the ports the routes need, as the composition root provides
  *  them (keeps route files to a single adapter import). */
 export interface AppPorts {
   editions: EditionStore;
   highlights: HighlightsSource;
   corrections: CorrectionSink;
+  pool: PoolStore;
 }
