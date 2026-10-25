@@ -95,6 +95,18 @@ describe("parseEditionItem", () => {
     expect(parseEditionItem(VALID.items[0])!.propensity).toBeUndefined();
     expect(parseEditionItem(VALID.items[0])!.explore_flag).toBeUndefined();
   });
+
+  it("accepts has_reader (in-paper reader flag) and keeps it on the item", () => {
+    const item = parseEditionItem({ ...VALID.items[0], has_reader: true });
+    expect(item).not.toBeNull();
+    expect(item!.has_reader).toBe(true);
+    expect(parseEditionItem({ ...VALID.items[1], has_reader: false })!.has_reader).toBe(false);
+  });
+
+  it("rejects a non-boolean has_reader and tolerates its absence (pre-reader editions)", () => {
+    expect(parseEditionItem({ ...VALID.items[0], has_reader: "yes" })).toBeNull();
+    expect(parseEditionItem(VALID.items[0])!.has_reader).toBeUndefined();
+  });
 });
 
 describe("parseEdition", () => {

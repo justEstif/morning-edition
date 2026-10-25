@@ -23,6 +23,8 @@ import path from "node:path";
 import { randomBytes } from "node:crypto";
 import { DATE_RE, editionItemIds, parseEdition, type RawEdition } from "$lib/domain/edition.js";
 import type { PoolCandidate } from "$lib/domain/pool.js";
+import { parseReaderArticles, type ReaderArticles } from "$lib/domain/reader.js";
+import type { ReaderSource } from "$lib/domain/ports.js";
 import {
   attachFlipMs,
   rejectionRecordFor,
@@ -120,6 +122,23 @@ export const pool: PoolStore = {
       return Array.isArray(rows) ? (rows as PoolCandidate[]) : [];
     } catch {
       return [];
+    }
+  },
+};
+
+/** ReaderSource port → reader-articles.json on the volume (written by the
+ *  pipeline build, rsynced by deploy). Absent/corrupt file → null — the
+ *  /read route treats that exactly like "no extracted text" and falls back
+ *  to the item's external URL (card t_f06c164b's graceful-fallback rule). */
+export const readerArticles: ReaderSource = {
+  async load(): Promise<ReaderArticles | null> {
+    try {
+      // parsed, never trusted — a corrupt file counts as absent
+      return parseReaderArticles(
+        JSON.parse(await fs.readFile(path.join(DATA_DIR, "reader-articles.json"), "utf8")),
+      );
+    } catch {
+      return null;
     }
   },
 };

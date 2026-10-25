@@ -52,6 +52,11 @@ export interface EditionItem {
   explore_flag?: boolean;
   /** Why-shown log: rubric score + reason, on every item. */
   propensity?: ItemPropensity;
+  /** In-paper reader (card t_f06c164b): true when the pipeline extracted the
+   *  item's full article text (reader-articles.json) — the paper's item links
+   *  point at /read/<id> instead of the external URL. Absent → external link
+   *  (the pre-reader behavior; extraction failures fall back gracefully). */
+  has_reader?: boolean;
 }
 
 /** Raw edition JSON written by the builder. */
@@ -130,8 +135,9 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
  *  item, the builder is the only writer); optional string fields: brief,
  *  captured_at; optional explore metadata: explore_flag (boolean) +
  *  propensity ({score: finite number, why?: string}) — malformed explore
- *  metadata invalidates the item (parsed, never trusted). Unknown extra
- *  keys are tolerated — the builder may carry fields this app never
+ *  metadata invalidates the item (parsed, never trusted). has_reader is an
+ *  optional boolean (in-paper reader availability, card t_f06c164b). Unknown
+ *  extra keys are tolerated — the builder may carry fields this app never
  *  renders. */
 export function parseEditionItem(raw: unknown): EditionItem | null {
   if (!isPlainObject(raw)) return null;
@@ -143,6 +149,7 @@ export function parseEditionItem(raw: unknown): EditionItem | null {
     if (raw[key] !== undefined && typeof raw[key] !== "string") return null;
   }
   if (raw.explore_flag !== undefined && typeof raw.explore_flag !== "boolean") return null;
+  if (raw.has_reader !== undefined && typeof raw.has_reader !== "boolean") return null;
   if (raw.propensity !== undefined && raw.propensity !== null) {
     if (!isPlainObject(raw.propensity)) return null;
     if (typeof raw.propensity.score !== "number" || !Number.isFinite(raw.propensity.score))

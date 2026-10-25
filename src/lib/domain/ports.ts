@@ -10,6 +10,7 @@ import type { RawEdition } from "./edition.js";
 import type { HighlightRow, LedgerEvent, RejectionRecord, VerdictEvent } from "./feedback.js";
 import type { ExploreCandidate, ExplorePick } from "./explore.js";
 import type { PoolCandidate } from "./pool.js";
+import type { ReaderArticles } from "./reader.js";
 
 export type { RejectionRecord };
 
@@ -71,6 +72,14 @@ export interface PoolStore {
   load(): Promise<PoolCandidate[]>;
 }
 
+/** Extracted full article text for the edition's deep-read / captured items
+ *  (reader-articles.json on the volume, written by the pipeline; served by
+ *  the /read/<id> route, card t_f06c164b). Null when absent or corrupt — the
+ *  reader route then falls back to the item's external URL. */
+export interface ReaderSource {
+  load(): Promise<ReaderArticles | null>;
+}
+
 /** Aggregate of the ports the routes need, as the composition root provides
  *  them (keeps route files to a single adapter import). */
 export interface AppPorts {
@@ -78,4 +87,5 @@ export interface AppPorts {
   highlights: HighlightsSource;
   corrections: CorrectionSink;
   pool: PoolStore;
+  reader: ReaderSource;
 }
