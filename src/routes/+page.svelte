@@ -1,6 +1,6 @@
 <script lang="ts">
 	import '../app.css';
-	import { markFor, widthClass } from '$lib/domain/edition.js';
+	import { markFor } from '$lib/domain/edition.js';
 	import type { EditionItem } from '$lib/domain/edition.js';
 	import { impression } from '$lib/impressions.js';
 	import { dwellOpen } from '$lib/dwell.js';
@@ -20,7 +20,9 @@
 	/* Impression capture: lead + lead-side well are captured #1/#2, so the
 	   items rendered in the Captured section continue at #3. explore_flag /
 	   propensity ride along when the builder attached them (research R3,
-	   shadow-mode) — the why-shown log; nothing visual changes. */
+	   shadow-mode) — the why-shown log; nothing visual changes. NOTE: the
+	   telemetry field `tier` predates the broadsheet tier and still carries
+	   the item KIND — a payload contract, unchanged on purpose. */
 	function impressionInfo(item: EditionItem, sectionKey: string, position: number) {
 		return {
 			item_id: item.id,
@@ -102,13 +104,39 @@
 		{#if data.isDemo}<span class="fl">❦</span><span>demo edition — mock data only</span>{/if}
 	</div>
 
+	{#if ed.sections.length > 0}
+		<!-- The index strip: a real broadsheet needs an "In This Edition" agate
+		     line under the nameplate (research R5) — at ~100 items it is what
+		     makes the page navigable, and it doubles as the keyboard/SR outline. -->
+		<nav class="index" aria-label="In this edition">
+			<span class="idx-cap">In This Edition</span>
+			{#each ed.sections as section (section.key)}
+				<span class="idx-entry">
+					<a href="#sec-{section.key}">
+						<span class="idx-sec">{section.title}</span>
+						<span class="idx-lead">— {section.sectionLead?.title ?? section.items[0]?.title}</span>
+					</a>
+					<span class="fl">❦</span>
+				</span>
+			{/each}
+		</nav>
+	{/if}
+
 	{#if ed.lead}
 		{@const lead = ed.lead}
+		<!-- The page lead: the ONLY item allowed to dominate. Pirata One display
+		     headline (blackletter = display-only, research Q4), kicker →
+		     headline → deck in the ~36→18→14 layering ratio, brief opened wide
+		     with the page's rationed drop cap. -->
 		<div class="lead">
 			<div class="lead-main" use:impression={impressionInfo(lead, 'captured', 1)}>
 				<div class="cap">Captured — you saved this yesterday, from {lead.source}</div>
-				<h2><a href={lead.url} onclick={() => trackClick(lead)}>{lead.title}</a></h2>
-				<p class="deck">{lead.brief || lead.title}</p>
+				<h2 class="display"><a href={lead.url} onclick={() => trackClick(lead)}>{lead.title}</a></h2>
+				{#if lead.brief}
+					<p class="deck dc">{lead.brief}</p>
+				{:else}
+					<p class="deck">{lead.title}</p>
+				{/if}
 			</div>
 			{#if ed.leadSide}
 				{@const leadSide = ed.leadSide}
@@ -126,30 +154,71 @@
 		</div>
 	{/if}
 
-	{#each ed.sections as section (section.key)}
-		<section>
+	{#each ed.sections as section, si (section.key)}
+		<section id="sec-{section.key}">
 			<h2 class="col-h">{section.title} <small>{section.items.length} item{section.items.length === 1 ? '' : 's'}</small></h2>
-			<div class="cols">
-				{#each section.items as item, i (item.id)}
+			<!-- Systematic chaos (research R10): the layout template rotates
+			     deterministically per section — same tier structure, three
+			     different grids, so no two sections sit alike and no rebuild
+			     is random. Columns deliberately do NOT share baselines.
+			     no-lead: the Captured section's display stories live in the
+			     page-lead block above, so its grid must fill without one. -->
+			<div class="cols t{si % 3} {section.sectionLead ? '' : 'no-lead'}">
+				{#if section.sectionLead}
+					{@const item = section.sectionLead}
 					{@const m = markFor(item)}
-					{@const pos = section.key === 'captured' ? i + 3 : i + 1}
-					<div class="item {widthClass(section, i)}" use:impression={impressionInfo(item, section.key, pos)}>
+					<article class="item tier-lead" use:impression={impressionInfo(item, section.key, 1)}>
 						<h3><a href={item.url} onclick={() => trackClick(item)}>{item.title}</a></h3>
 						{#if item.brief}
-							<!-- the fold: the item's actual brief, one typographic tap away -->
-							<details class="fold">
-								<summary><span class="fold-word"></span></summary>
-								<p class="fold-body">{item.brief}</p>
-							</details>
-						{:else}
-							<!-- no brief: keep the item's 3-row subgrid so marks stay baseline-aligned -->
-							<div class="fold-empty" aria-hidden="true"></div>
+							<!-- Drop caps are rationed to ≤3 per page (research R4):
+							     the page lead above + the first two section leads. -->
+							<p class="body {si < 2 ? 'dc' : ''}">{item.brief}</p>
 						{/if}
 						<div class="markrow">
 							<span class="mark"><b>{m.mark} {m.label}</b>{#if item.captured_at} · captured {item.captured_at.slice(0, 10)}{/if}</span>
 						</div>
-					</div>
+					</article>
+				{/if}
+				{#each section.secondary as item, i (item.id)}
+					{@const m = markFor(item)}
+					{@const pos = 2 + i}
+					<article class="item tier-secondary sec{i}" use:impression={impressionInfo(item, section.key, pos)}>
+						<h4><a href={item.url} onclick={() => trackClick(item)}>{item.title}</a></h4>
+						{#if item.brief}
+							<p class="body tight">{item.brief}</p>
+						{/if}
+						<div class="markrow">
+							<span class="mark"><b>{m.mark} {m.label}</b>{#if item.captured_at} · captured {item.captured_at.slice(0, 10)}{/if}</span>
+						</div>
+					</article>
 				{/each}
+				{#if section.briefs.length > 0}
+					<!-- The briefs well: agate-density, anchored home every day
+					     (research R6). Hairline rule above each brief, column rules
+					     between the columns, ragged right, no drop caps. The
+					     typographic folds live here — a jumpline is only honest when
+					     a story really continues across a break, so none are faked:
+					     the fold IS the continuation (research amendment #3). -->
+					<div class="briefs">
+						<div class="briefs-cap">‡ Briefs <span class="briefs-count">{section.briefs.length}</span></div>
+						<div class="briefs-cols">
+							{#each section.briefs as item, i (item.id)}
+								{@const m = markFor(item)}
+								{@const pos = 2 + section.secondary.length + i}
+								<article class="brief" use:impression={impressionInfo(item, section.key, pos)}>
+									<h4 class="brief-h"><a href={item.url} onclick={() => trackClick(item)}>{item.title}</a></h4>
+									{#if item.brief}
+										<details class="fold">
+											<summary><span class="fold-word"></span></summary>
+											<p class="fold-body">{item.brief}</p>
+										</details>
+									{/if}
+									<div class="brief-mark"><b>{m.mark} {m.label}</b> · via {item.source}</div>
+								</article>
+							{/each}
+						</div>
+					</div>
+				{/if}
 			</div>
 		</section>
 	{/each}

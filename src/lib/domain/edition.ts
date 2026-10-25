@@ -11,10 +11,20 @@
    Locked rules (parent card t_05ddeae1): section order captured → rust-os →
    ai-at-work → might-like; empty sections omitted; first captured item is the
    lead feature; marks are typographic only: † deep read, ‡ brief, ❦ captured,
-   ✳ suggested (might-like items); shadow_score is never rendered. */
+   ✳ suggested (might-like items); shadow_score is never rendered.
+
+   Broadsheet hierarchy (card t_6000c019, scope amendment: no backward
+   compatibility): every item carries a REQUIRED `tier` — "lead" | "secondary"
+   | "brief". The builder is the only writer (assignTiers); the validator
+   rejects missing or unknown tiers, so legacy tierless editions no longer
+   parse. The edition-wide page lead is the first tier-lead in SECTION_ORDER. */
 
 /** ISO calendar date, "YYYY-MM-DD". */
 export const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Presentation tiers, in descending prominence. */
+export const TIERS = ["lead", "secondary", "brief"] as const;
+export type Tier = (typeof TIERS)[number];
 
 /** Why-shown metadata riding every edition item (research R3): the rubric
  *  score at presentation time + why it was shown ("rubric", or the explore
@@ -32,6 +42,9 @@ export interface EditionItem {
   source: string;
   section: string;
   kind: string;
+  /** Broadsheet prominence (required since t_6000c019 amendment): the
+   *  builder assigns it deterministically; parse rejects absence. */
+  tier: Tier;
   brief?: string;
   captured_at?: string;
   /** Explore-slot marker (research R3, shadow-mode): data only, never
@@ -47,11 +60,31 @@ export interface RawEdition {
   items: EditionItem[];
 }
 
-/** A shaped section for rendering (empty sections omitted by shapeEdition). */
+/** Deterministic tier assignment (card t_6000c019 — dumb, no ML): within
+ *  each section, counting in array order, the first item is that section's
+ *  lead, the next three are secondary, the rest are briefs. Pure — returns
+ *  NEW items in the input order; never mutates. The edition-wide page lead
+ *  is the first tier-lead in SECTION_ORDER (captured pins first). */
+export function assignTiers(items: EditionItem[]): EditionItem[] {
+  const seen = new Map<string, number>();
+  return items.map((item) => {
+    const n = seen.get(item.section) ?? 0;
+    seen.set(item.section, n + 1);
+    const tier: Tier = n === 0 ? "lead" : n <= 3 ? "secondary" : "brief";
+    return { ...item, tier };
+  });
+}
+
+/** A shaped section for rendering (empty sections omitted by shapeEdition).
+ *  items is the full section in priority order; sectionLead/secondary/
+ *  briefs are the same items partitioned by tier for the broadsheet layout. */
 export interface ShapedSection {
   key: string;
   title: string;
   items: EditionItem[];
+  sectionLead: EditionItem | null;
+  secondary: EditionItem[];
+  briefs: EditionItem[];
 }
 
 /** Edition JSON shaped for rendering — shapeEdition's return shape. */
@@ -92,17 +125,20 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
 }
 
 /** Validate one edition item (parsed wire JSON → EditionItem | null).
- *  Required string fields: id, title, url, source, section, kind; optional
- *  string fields: brief, captured_at; optional explore metadata:
- *  explore_flag (boolean) + propensity ({score: finite number, why?:
- *  string}) — malformed explore metadata invalidates the item (parsed,
- *  never trusted). Unknown extra keys are tolerated — the builder may
- *  carry fields this app never renders. */
+ *  Required string fields: id, title, url, source, section, kind, tier
+ *  (tier must be one of TIERS — absent or unknown tiers invalidate the
+ *  item, the builder is the only writer); optional string fields: brief,
+ *  captured_at; optional explore metadata: explore_flag (boolean) +
+ *  propensity ({score: finite number, why?: string}) — malformed explore
+ *  metadata invalidates the item (parsed, never trusted). Unknown extra
+ *  keys are tolerated — the builder may carry fields this app never
+ *  renders. */
 export function parseEditionItem(raw: unknown): EditionItem | null {
   if (!isPlainObject(raw)) return null;
   for (const key of ["id", "title", "url", "source", "section", "kind"]) {
     if (typeof raw[key] !== "string") return null;
   }
+  if (typeof raw.tier !== "string" || !TIERS.includes(raw.tier as Tier)) return null;
   for (const key of ["brief", "captured_at"]) {
     if (raw[key] !== undefined && typeof raw[key] !== "string") return null;
   }
@@ -161,9 +197,11 @@ export function longDate(dateStr: string): string {
 /**
  * Shape validated edition JSON for rendering.
  * Returns { date, dateLong, lead, leadSide, glance, sections, itemCount }.
- * lead = first captured item; leadSide = second capture ("also captured"
- * well); sections = non-empty sections in locked order, the Captured section
- * holding captures beyond the first two.
+ * lead = the edition-wide page lead (first tier-lead in SECTION_ORDER —
+ * with the builder's assignTiers this is the first capture); leadSide =
+ * second capture ("also captured" well); sections = non-empty sections in
+ * locked order, the Captured section holding captures beyond the first two,
+ * each partitioned into sectionLead/secondary/briefs by tier.
  */
 export function shapeEdition(raw: RawEdition | null): ShapedEdition {
   const items: EditionItem[] = Array.isArray(raw?.items) ? raw.items : [];
@@ -173,18 +211,24 @@ export function shapeEdition(raw: RawEdition | null): ShapedEdition {
   for (const item of items) {
     if (bySection[item.section]) bySection[item.section].push(item);
   }
-  const captures = bySection["captured"];
-  const lead = captures[0] || null;
-  const leadSide = captures[1] || null; // "Also captured" well
+  const pageLead =
+    SECTION_ORDER.map((k) => bySection[k].find((i) => i.tier === "lead")).find((i) => i) ?? null;
+  const leadSide = bySection["captured"][1] ?? null; // "Also captured" well
   const rest: Record<string, EditionItem[]> = Object.fromEntries(
     Object.entries(bySection).map(([k, v]): [string, EditionItem[]] => [k, v]),
   );
-  rest["captured"] = captures.slice(2); // beyond lead + side well
-  const sections: ShapedSection[] = SECTION_ORDER.map((key) => ({
-    key,
-    title: SECTION_TITLES[key],
-    items: rest[key],
-  })).filter((s) => s.items.length > 0);
+  rest["captured"] = bySection["captured"].slice(2); // beyond lead + side well
+  const sections: ShapedSection[] = SECTION_ORDER.map((key) => {
+    const its = rest[key];
+    return {
+      key,
+      title: SECTION_TITLES[key],
+      items: its,
+      sectionLead: its.find((i) => i.tier === "lead") ?? null,
+      secondary: its.filter((i) => i.tier === "secondary"),
+      briefs: its.filter((i) => i.tier === "brief"),
+    };
+  }).filter((s) => s.items.length > 0);
   const briefs = items.filter((i) => i.kind === "brief").length;
   const deepReads = items.filter((i) => i.kind === "deep-read").length;
   const captureCount = items.filter((i) => i.kind === "captured").length;
@@ -200,13 +244,7 @@ export function shapeEdition(raw: RawEdition | null): ShapedEdition {
         : "."),
     sections,
     itemCount: items.length,
-    lead,
+    lead: pageLead,
     leadSide,
   };
-}
-
-/** Column width class for an item inside its section (001e: w4/w6). */
-export function widthClass(section: ShapedSection, _index: number): string {
-  if (section.items.length === 1 || section.items.length === 2) return "w6";
-  return "w4";
 }

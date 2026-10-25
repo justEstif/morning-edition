@@ -1,15 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
+  assignTiers,
   editionItemIds,
   longDate,
   markFor,
   parseEdition,
   parseEditionItem,
   shapeEdition,
+  type EditionItem,
   type RawEdition,
 } from "./edition.js";
 
-const VALID = {
+const VALID: { edition_date: string; items: Array<EditionItem & Record<string, unknown>> } = {
   edition_date: "2026-10-25",
   items: [
     {
@@ -19,6 +21,7 @@ const VALID = {
       source: "readeck",
       section: "captured",
       kind: "captured",
+      tier: "lead",
       brief: "the lead",
       captured_at: "2026-10-24T10:00:00Z",
     },
@@ -29,6 +32,7 @@ const VALID = {
       source: "miniflux",
       section: "captured",
       kind: "brief",
+      tier: "secondary",
     },
     {
       id: "hn-3",
@@ -37,6 +41,7 @@ const VALID = {
       source: "hn",
       section: "might-like",
       kind: "brief",
+      tier: "brief",
       shadow_score: 0.7, // builder-only field, tolerated
     },
   ],
@@ -47,6 +52,7 @@ describe("parseEditionItem", () => {
     const item = parseEditionItem(VALID.items[2]);
     expect(item).not.toBeNull();
     expect(item!.id).toBe("hn-3");
+    expect(item!.tier).toBe("brief");
   });
 
   it("rejects non-objects and missing/non-string required fields", () => {
@@ -56,6 +62,14 @@ describe("parseEditionItem", () => {
     expect(parseEditionItem({ ...VALID.items[0], title: 5 })).toBeNull();
     expect(parseEditionItem({ id: "x" })).toBeNull();
     expect(parseEditionItem({ ...VALID.items[0], brief: 9 })).toBeNull();
+  });
+
+  it("REJECTS a missing or unknown tier (required since the broadsheet amendment)", () => {
+    const tierless: Record<string, unknown> = { ...VALID.items[0] };
+    delete tierless.tier;
+    expect(parseEditionItem(tierless)).toBeNull();
+    expect(parseEditionItem({ ...VALID.items[0], tier: "splash" })).toBeNull();
+    expect(parseEditionItem({ ...VALID.items[0], tier: 3 })).toBeNull();
   });
 
   it("accepts explore metadata (flag + propensity) and keeps it on the item", () => {
@@ -99,6 +113,69 @@ describe("parseEdition", () => {
     expect(parseEdition({ edition_date: "2026-10-25", items: "nope" })).toBeNull();
     expect(parseEdition({ edition_date: "2026-10-25", items: [{ id: 1 }] })).toBeNull();
   });
+
+  it("rejects a legacy tierless edition (the builder is the only writer)", () => {
+    const legacy = {
+      edition_date: "2026-10-24",
+      items: VALID.items.map((it) => {
+        const row: Record<string, unknown> = { ...it };
+        delete row.tier;
+        return row;
+      }),
+    };
+    expect(parseEdition(legacy)).toBeNull();
+  });
+});
+
+describe("assignTiers", () => {
+  it("first item per section is lead, next three secondary, rest briefs", () => {
+    const mk = (id: string, section: string): EditionItem => ({
+      id,
+      title: id,
+      url: `https://example.com/${id}`,
+      source: "hn",
+      section,
+      kind: "brief",
+      tier: "brief",
+    });
+    const items = [
+      mk("a", "rust-os"),
+      mk("b", "rust-os"),
+      mk("c", "rust-os"),
+      mk("d", "rust-os"),
+      mk("e", "rust-os"),
+      mk("f", "rust-os"),
+      mk("g", "ai-at-work"),
+    ];
+    const tiers = Object.fromEntries(assignTiers(items).map((i) => [i.id, i.tier]));
+    expect(tiers).toEqual({
+      a: "lead",
+      b: "secondary",
+      c: "secondary",
+      d: "secondary",
+      e: "brief",
+      f: "brief",
+      g: "lead", // per-section: one lead each, however small the section
+    });
+  });
+
+  it("is pure — input items are not mutated, order is preserved", () => {
+    const mk = (id: string): EditionItem => ({
+      id,
+      title: id,
+      url: "https://example.com/x",
+      source: "hn",
+      section: "rust-os",
+      kind: "brief",
+      tier: "brief",
+    });
+    const items = [mk("a"), mk("b")];
+    const out = assignTiers(items);
+    expect(items.map((i) => i.tier)).toEqual(["brief", "brief"]);
+    expect(out.map((i) => i.id)).toEqual(["a", "b"]);
+    expect(out[0].tier).toBe("lead");
+    expect(out[0]).not.toBe(items[0]);
+  });
 });
 
 describe("editionItemIds", () => {
@@ -119,6 +196,37 @@ describe("shapeEdition", () => {
     expect(shaped.itemCount).toBe(3);
     expect(shaped.dateLong).toBe(longDate("2026-10-25"));
     expect(shaped.glance).toContain("1 captures pinned");
+  });
+
+  it("partitions each section by tier (sectionLead/secondary/briefs)", () => {
+    const ed: RawEdition = parseEdition({
+      edition_date: "2026-10-25",
+      items: [
+        { ...VALID.items[2], id: "m1", tier: "lead" },
+        { ...VALID.items[2], id: "m2", tier: "secondary" },
+        { ...VALID.items[2], id: "m3", tier: "secondary" },
+        { ...VALID.items[2], id: "m4", tier: "brief" },
+      ],
+    })!;
+    const shaped = shapeEdition(ed);
+    expect(shaped.lead!.id).toBe("m1"); // first tier-lead in SECTION_ORDER... might-like is last; captured empty
+    const ml = shaped.sections.find((s) => s.key === "might-like")!;
+    expect(ml.sectionLead!.id).toBe("m1");
+    expect(ml.secondary.map((i) => i.id)).toEqual(["m2", "m3"]);
+    expect(ml.briefs.map((i) => i.id)).toEqual(["m4"]);
+    // items stays the full partition source, priority order
+    expect(ml.items.map((i) => i.id)).toEqual(["m1", "m2", "m3", "m4"]);
+  });
+
+  it("the page lead is the first tier-lead in section order, not merely the first item", () => {
+    const ed: RawEdition = parseEdition({
+      edition_date: "2026-10-25",
+      items: [
+        { ...VALID.items[2], id: "rust-brief", section: "rust-os", tier: "brief" },
+        { ...VALID.items[2], id: "might-lead", section: "might-like", tier: "lead" },
+      ],
+    })!;
+    expect(shapeEdition(ed).lead!.id).toBe("might-lead");
   });
 
   it("returns the empty shape for null", () => {
