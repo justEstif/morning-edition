@@ -52,6 +52,14 @@
 		foldStates = [];
 	}
 
+	/* In-paper reader (card t_f06c164b): items whose article text was
+	   extracted link INSIDE the paper (/read/<id>); the click event + dwell
+	   open below still carry the item's external url, so the ledger's shapes
+	   and ids are untouched. Extraction-failed items keep the external link. */
+	function itemLink(item: EditionItem): string {
+		return item.has_reader ? `/read/${item.id}` : item.url;
+	}
+
 	function trackClick(item: EditionItem) {
 		// Dwell pairs with the click: record the open now; the return
 		// (refocus / next load) settles it into one dwell event — shadow-mode,
@@ -134,7 +142,7 @@
 		<div class="lead">
 			<div class="lead-main" use:impression={impressionInfo(lead, 'captured', 1)}>
 				<div class="cap">Captured — you saved this yesterday, from {lead.source}</div>
-				<h2 class="display"><a href={lead.url} onclick={() => trackClick(lead)}>{lead.title}</a></h2>
+				<h2 class="display"><a href={itemLink(lead)} onclick={() => trackClick(lead)}>{lead.title}</a></h2>
 				{#if lead.brief}
 					<p class="deck dc">{lead.brief}</p>
 				{:else}
@@ -145,7 +153,7 @@
 				{@const leadSide = ed.leadSide}
 				<div class="lead-side1 well" use:impression={impressionInfo(leadSide, 'captured', 2)}>
 					<div class="cap">Also captured</div>
-					<h3><a href={leadSide.url} onclick={() => trackClick(leadSide)}>{leadSide.title}</a></h3>
+					<h3><a href={itemLink(leadSide)} onclick={() => trackClick(leadSide)}>{leadSide.title}</a></h3>
 					<p>{leadSide.brief || leadSide.title}</p>
 					<span class="mark"><b>Captured</b> · your save</span>
 				</div>
@@ -171,7 +179,7 @@
 					{@const item = section.sectionLead}
 					{@const m = markFor(item)}
 					<article class="item tier-lead" use:impression={impressionInfo(item, section.key, 1)}>
-						<h3><a href={item.url} onclick={() => trackClick(item)}>{item.title}</a></h3>
+						<h3><a href={itemLink(item)} onclick={() => trackClick(item)}>{item.title}</a></h3>
 						{#if item.brief}
 							<!-- Drop caps are rationed to ≤3 per page (research R4):
 							     the page lead above + the first two section leads. -->
@@ -186,7 +194,7 @@
 					{@const m = markFor(item)}
 					{@const pos = 2 + i}
 					<article class="item tier-secondary sec{i}" use:impression={impressionInfo(item, section.key, pos)}>
-						<h4><a href={item.url} onclick={() => trackClick(item)}>{item.title}</a></h4>
+						<h4><a href={itemLink(item)} onclick={() => trackClick(item)}>{item.title}</a></h4>
 						{#if item.brief}
 							<p class="body tight">{item.brief}</p>
 						{/if}
@@ -209,7 +217,7 @@
 								{@const m = markFor(item)}
 								{@const pos = 2 + section.secondary.length + i}
 								<article class="brief" use:impression={impressionInfo(item, section.key, pos)}>
-									<h4 class="brief-h"><a href={item.url} onclick={() => trackClick(item)}>{item.title}</a></h4>
+									<h4 class="brief-h"><a href={itemLink(item)} onclick={() => trackClick(item)}>{item.title}</a></h4>
 									{#if item.brief}
 										<details class="fold">
 											<summary><span class="fold-word"></span></summary>
