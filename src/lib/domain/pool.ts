@@ -20,8 +20,9 @@ export type PoolSource = "miniflux" | "readeck" | "hn";
  *  the story registry's cross-day memory — never re-presented). */
 export type PoolState = "fresh" | "aged" | "expired" | "used";
 
-/** One row of the persistent candidate pool (candidates.json on the data
- *  volume). Identity is `candidate_id` = "<src>-<source-native-id>" — the
+/** One row of the persistent candidate pool (pool.json — pipeline-side
+ *  next to the candidates-*.json snapshots, app-side on the data volume).
+ *  Identity is `candidate_id` = "<src>-<source-native-id>" — the
  *  same id space edition items use (miniflux-1200, readeck-abc…), so pool
  *  rows, edition items and ledger events join by id with no URL fuzz. */
 export interface PoolCandidate {

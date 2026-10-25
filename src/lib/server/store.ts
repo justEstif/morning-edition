@@ -12,6 +12,7 @@
        rejections.jsonl                write-time referential rejections
        corrections-quarantine.jsonl    quarantined rows (excluded from all reads)
        highlights.json                 synced Readeck highlights (sync_signals.py)
+       pool.json                       persistent candidate pool (pipeline fetchers)
 
    The Python builder is the source of truth; nothing here ever writes edition
    JSON. Corrections append one JSON object per line — the file is append-only,
@@ -21,6 +22,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { randomBytes } from "node:crypto";
 import { DATE_RE, editionItemIds, parseEdition, type RawEdition } from "$lib/domain/edition.js";
+import type { PoolCandidate } from "$lib/domain/pool.js";
 import {
   attachFlipMs,
   rejectionRecordFor,
@@ -34,6 +36,7 @@ import type {
   CorrectionSink,
   EditionStore,
   HighlightsSource,
+  PoolStore,
   RejectionRecord,
 } from "$lib/domain/ports.js";
 
@@ -100,6 +103,21 @@ export const highlights: HighlightsSource = {
     try {
       const rows = JSON.parse(await fs.readFile(path.join(DATA_DIR, "highlights.json"), "utf8"));
       return Array.isArray(rows) ? rows : [];
+    } catch {
+      return [];
+    }
+  },
+};
+
+/** PoolStore port → pool.json on the volume (written by the pipeline's
+ *  fetchers, rsynced by deploy). Read-only: the app recomputes aging with
+ *  the domain's effectiveState; only the pipeline ever writes this file.
+ *  Absent/corrupt file → [] — an empty pool just means nothing to explore. */
+export const pool: PoolStore = {
+  async load(): Promise<PoolCandidate[]> {
+    try {
+      const rows = JSON.parse(await fs.readFile(path.join(DATA_DIR, "pool.json"), "utf8"));
+      return Array.isArray(rows) ? (rows as PoolCandidate[]) : [];
     } catch {
       return [];
     }
