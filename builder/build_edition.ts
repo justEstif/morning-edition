@@ -47,6 +47,57 @@ const KIND_LABELS: Record<string, string> = {
 
 class EditionError extends Error {}
 
+/** A title that is nothing but a link — some X/Twitter RSS items ship no
+ *  real title and put the raw URL in the title field (card t_e9c6b1cc). */
+const BARE_URL_RE = /^https?:\/\/\S+$/;
+/** Bare tracking URLs (t.co, x.com/i/...) appended to the end of an
+ *  otherwise-real title; X may wrap the remnant in its ` / X` attribution. */
+const TRAILING_URL_RE = /(?:\s+https?:\/\/\S+)+(?:["”']?\s*\/\s*X)?\s*$/i;
+const MAX_SYNTH_TITLE = 80;
+
+function hostOf(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+}
+
+/**
+ * Deterministic headline hygiene (card t_e9c6b1cc): the pipeline's raw RSS
+ * titles sometimes ARE urls, and a URL must never render as a headline.
+ * Dumb and deterministic, in order:
+ *   1. strip bare tracking URLs appended at the end of a real title
+ *      (including X's `" / X` attribution tail left behind by the strip);
+ *   2. if what remains is empty/whitespace or a bare URL, synthesize a
+ *      headline from the item: the first sentence of the brief, else
+ *      "{source} · {domain}".
+ * Pure: same input item, same output title — rebuilds are stable.
+ */
+export function normalizeTitle(item: {
+  title: string;
+  url: string;
+  source: string;
+  brief?: string;
+}): string {
+  let t = String(item.title ?? "").trim();
+  if (TRAILING_URL_RE.test(t)) t = t.replace(TRAILING_URL_RE, "").trim();
+  if (!t || BARE_URL_RE.test(t)) {
+    const first = (item.brief ?? "")
+      .trim()
+      .split(/[.!?]+(?:\s|$)/)
+      .map((s) => s.trim())
+      .filter(Boolean)[0];
+    if (first) {
+      if (first.length <= MAX_SYNTH_TITLE) return first;
+      const cut = first.slice(0, MAX_SYNTH_TITLE);
+      return `${cut.slice(0, cut.lastIndexOf(" ") > 0 ? cut.lastIndexOf(" ") : MAX_SYNTH_TITLE)}\u2026`;
+    }
+    return `${item.source} \u00b7 ${hostOf(item.url)}`;
+  }
+  return t;
+}
+
 interface Item {
   id: string;
   title: string;
@@ -238,9 +289,12 @@ export function build(editionPath: string, outputDir: string): void {
   const edition = parseEdition(raw);
   if (!edition)
     throw new EditionError("edition JSON does not match the domain schema (parseEdition)");
-  const { edition_date: editionDate, items } = edition;
-  if (items.length === 0)
+  const { edition_date: editionDate, items: editionItems } = edition;
+  if (editionItems.length === 0)
     throw new EditionError("edition has no items; an empty edition is not worth a page");
+  // Headline hygiene (card t_e9c6b1cc): clean every item title once, before
+  // validation and rendering — a raw URL never reaches the page as a headline.
+  const items = editionItems.map((it) => ({ ...it, title: normalizeTitle(it) }));
   const sections = groupItems(items);
 
   const [leadHtml, restCaptured] = renderLead(sections["captured"]);
