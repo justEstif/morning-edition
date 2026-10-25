@@ -1,6 +1,6 @@
 import { error } from "@sveltejs/kit";
-import { loadEdition, IS_DEMO } from "$lib/server/store.js";
-import { shapeEdition, markFor } from "$lib/edition.js";
+import { markFor, shapeEdition } from "$lib/domain/edition.js";
+import { editions } from "$lib/server/store.js";
 import type { PageServerLoad } from "./$types.js";
 
 /** The Grading Desk — one pass, one verdict per item (v2); verdict events POST
@@ -8,7 +8,7 @@ import type { PageServerLoad } from "./$types.js";
  *  the ledger is self-describing). */
 export const load: PageServerLoad = async ({ url }) => {
   const date = url.searchParams.get("date") || undefined;
-  const raw = await loadEdition(date);
+  const raw = date ? await editions.loadByDate(date) : await editions.loadLatest();
   if (!raw) {
     throw error(404, "No edition found — run the builder first");
   }
@@ -28,5 +28,11 @@ export const load: PageServerLoad = async ({ url }) => {
       });
     }
   }
-  return { date: ed.date, dateLong: ed.dateLong, rows, itemCount: ed.itemCount, isDemo: IS_DEMO };
+  return {
+    date: ed.date,
+    dateLong: ed.dateLong,
+    rows,
+    itemCount: ed.itemCount,
+    isDemo: editions.isDemo,
+  };
 };

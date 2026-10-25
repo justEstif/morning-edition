@@ -10,6 +10,17 @@ Python builder (source of truth)   →  edition JSON  →  SvelteKit app (render
 ~/.hermes/morning-edition/ pipeline                   this repo, adapter-node on dokku
 ```
 
+## Architecture
+
+Hexagonal (ports & adapters) with a functional core — the one architecture for
+this repo. Three rules: `src/lib/domain/` has zero I/O and zero framework/node
+imports (edition types + validators in `domain/edition.ts`, ledger schema +
+`validateCorrection` in `domain/feedback.ts`, seams in `domain/ports.ts`);
+everything external is an adapter (the file store in `src/lib/server/store.ts`,
+HTTP route handlers, the pipeline clients); dependencies point inward only —
+routes/adapters import the domain, never the reverse. New stores (SQLite later)
+are new adapters; the domain doesn't change.
+
 ## Layout
 
 - `builder/` — Python builder + demo verifier (`verify_demo.py`). The builder

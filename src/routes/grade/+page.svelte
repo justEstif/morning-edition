@@ -1,6 +1,6 @@
 <script lang="ts">
 	import '../../app.css';
-	import type { CorrectionsSummary, Reason, Verdict, VerdictPostBody } from '$lib/types.js';
+	import type { CorrectionsSummary, Reason, Verdict, VerdictPostBody } from '$lib/domain/feedback.js';
 	import type { PageData } from './$types.js';
 
 	let { data }: { data: PageData } = $props();

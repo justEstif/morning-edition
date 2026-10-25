@@ -1,7 +1,7 @@
 <script lang="ts">
 	import '../app.css';
-	import { markFor, widthClass } from '$lib/edition.js';
-	import type { EditionItem } from '$lib/types.js';
+	import { markFor, widthClass } from '$lib/domain/edition.js';
+	import type { EditionItem } from '$lib/domain/edition.js';
 	import type { PageData } from './$types.js';
 
 	let { data }: { data: PageData } = $props();

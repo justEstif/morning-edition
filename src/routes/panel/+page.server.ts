@@ -1,7 +1,7 @@
 import { error } from "@sveltejs/kit";
-import { loadEdition, loadHighlights, IS_DEMO } from "$lib/server/store.js";
-import { shapeEdition, SECTION_TITLES, markFor } from "$lib/edition.js";
-import type { HighlightRow, RawEdition } from "$lib/types.js";
+import { markFor, shapeEdition, SECTION_TITLES, type RawEdition } from "$lib/domain/edition.js";
+import type { HighlightRow } from "$lib/domain/feedback.js";
+import { editions, highlights } from "$lib/server/store.js";
 import type { PageServerLoad } from "./$types.js";
 
 const MARK_TEXT_MAX = 280;
@@ -47,7 +47,7 @@ function groupMarks(
 /** QuickStudy panel — the same edition data, condensed into topic boxes. */
 export const load: PageServerLoad = async ({ url }) => {
   const date = url.searchParams.get("date") || undefined;
-  const raw = await loadEdition(date);
+  const raw = date ? await editions.loadByDate(date) : await editions.loadLatest();
   if (!raw) {
     throw error(404, "No edition found — run the builder first");
   }
@@ -67,15 +67,15 @@ export const load: PageServerLoad = async ({ url }) => {
       kind: markFor(item).label,
     })),
   }));
-  const highlights = await loadHighlights();
-  const marks = groupMarks(raw, highlights);
+  const rows = await highlights.load();
+  const marks = groupMarks(raw, rows);
   return {
     date: ed.date,
     dateLong: ed.dateLong,
     topics,
     marks,
-    markCount: highlights.length,
+    markCount: rows.length,
     itemCount: ed.itemCount,
-    isDemo: IS_DEMO,
+    isDemo: editions.isDemo,
   };
 };
