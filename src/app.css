@@ -899,6 +899,170 @@ details.fold > .fold-body {
   }
 }
 
+/* ---- The in-paper reader (card t_f06c164b; spike 002, variant B —
+   marginalia): an inside page of the same broadsheet. Text column completely
+   unboxed, ~65ch measure; the margin carries the engine's voice (italic
+   paper's note), the provenance block (the story registry made visible) and
+   the sticky verdict card. Vars only — the night edition inherits. ---- */
+.masthead.inside h1 {
+  font-size: clamp(30px, 3.6vw, 42px);
+}
+.reader-grid {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 68ch) 280px;
+  gap: 0 48px;
+  justify-content: center;
+  margin-top: 26px;
+}
+.reader-main {
+  min-width: 0;
+}
+.reader-main .kicker {
+  font-family: var(--sc);
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--mid);
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 8px;
+}
+.reader-main .kicker b {
+  font-weight: 400;
+  color: var(--ink);
+}
+.reader-main h1.display {
+  font-family: "Pirata One", serif;
+  font-weight: 400;
+  font-size: clamp(34px, 4.2vw, 52px);
+  line-height: 1.06;
+  margin: 14px 0 18px;
+}
+.reader-body p {
+  font-size: 17px;
+  line-height: 1.62;
+  margin: 0 0 1em;
+}
+.reader-body .dc::first-letter {
+  font-size: 56px;
+}
+.end-furniture {
+  border-top: 1px solid var(--rule);
+  margin-top: 30px;
+  padding-top: 10px;
+  font-family: var(--sc);
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--mid);
+}
+.end-furniture .fl {
+  color: var(--rule);
+  padding: 0 6px;
+}
+.reader-margin {
+  border-left: 1px solid var(--rule);
+  padding-left: 28px;
+  font-size: 13px;
+  align-self: start;
+}
+.reader-margin .cap {
+  font-family: var(--sc);
+  font-size: 10.5px;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--mid);
+  margin-bottom: 6px;
+}
+.paper-note {
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+}
+.paper-note p {
+  margin: 0;
+  font-style: italic;
+  line-height: 1.5;
+  color: var(--mid); /* the engine's voice is quieter than the author's */
+}
+.provenance dl {
+  margin: 0 0 14px;
+}
+.provenance dt {
+  font-family: var(--sc);
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--rule);
+  margin-top: 7px;
+}
+.provenance dd {
+  margin: 1px 0 0;
+  line-height: 1.45;
+}
+.verdict-card {
+  position: sticky;
+  top: 18px;
+  border: 1px solid var(--ink);
+  padding: 12px 14px;
+  font-family: var(--sc);
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--mid);
+}
+.verdict-card .vq {
+  font-family: var(--serif);
+  font-style: italic;
+  letter-spacing: 0;
+  color: var(--rule);
+}
+.verdict-card .vc-btns {
+  display: flex;
+  gap: 2px 10px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+.wire-note {
+  border: 1px dashed var(--rule);
+  padding: 20px 22px;
+  font-style: italic;
+  color: var(--mid);
+}
+.wire-note p {
+  margin: 0 0 8px;
+  line-height: 1.55;
+}
+.more-section {
+  grid-column: 1 / -1;
+  margin-top: 34px;
+}
+.more-section .more-item {
+  border-top: 1px dotted var(--rule);
+  padding: 8px 0;
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.45;
+}
+.more-section .more-item a {
+  color: var(--ink);
+}
+
+/* Margin drops under the text below 900px; border flips to the top.
+   The verdict card rides along (static) — grading stays one flick away. */
+@media (max-width: 900px) {
+  .reader-grid {
+    grid-template-columns: minmax(0, 68ch);
+  }
+  .reader-margin {
+    border-left: 0;
+    border-top: 1px solid var(--rule);
+    padding-left: 0;
+    padding-top: 16px;
+    margin-top: 24px;
+  }
+  .verdict-card {
+    position: static;
+  }
+}
+
 /* ---- 640px: single column; lead still visibly biggest, briefs compact ---- */
 @media (max-width: 640px) {
   .briefs-cols {
@@ -916,6 +1080,24 @@ details.fold > .fold-body {
   }
   .dc::first-letter {
     font-size: 32px;
+  }
+  /* Reader on phones: one comfortable reading column (spike floors: body
+     ≥12–13px is for briefs; article text keeps a larger floor), margin
+     already collapsed above, headline tames down. */
+  .reader-main h1.display {
+    font-size: 30px;
+  }
+  .reader-body p {
+    font-size: 16px;
+    line-height: 1.6;
+  }
+  .reader-body .dc::first-letter {
+    font-size: 40px;
+  }
+  .verdict-card .grade-btn,
+  .verdict-card .chip-btn {
+    font-size: 12.5px;
+    padding: 7px 10px;
   }
 }
 
@@ -989,6 +1171,23 @@ details.fold > .fold-body {
   .vote,
   .toolbar,
   .g-btns {
+    display: none !important;
+  }
+  /* The reader prints as one newspaper column: margin furniture rides under
+     the text, the sticky verdict card and rails stay screen-only. */
+  .reader-grid {
+    display: block;
+  }
+  .reader-margin {
+    border-left: 0;
+    border-top: 1px solid var(--rule);
+    padding-left: 0;
+    padding-top: 12px;
+    margin-top: 20px;
+  }
+  .verdict-card,
+  .end-furniture,
+  .more-section {
     display: none !important;
   }
   a {
