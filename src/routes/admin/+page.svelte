@@ -1,6 +1,7 @@
 <script lang="ts">
   import '../../app.css';
   import './admin.css';
+  import NightToggle from '$lib/NightToggle.svelte';
   import type { ActionData, PageData } from './$types.js';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -59,6 +60,8 @@
     <a href="/">the paper</a> <span class="fl">❦</span>
     <a href="/grade">grading desk</a> <span class="fl">❦</span>
     <a href="/panel">study panel</a> <span class="fl">❦</span>
+    <NightToggle />
+    <span class="fl">❦</span>
     <form method="POST" action="/logout" class="inline"><button class="tool-btn" type="submit">sign out</button></form>
   </div>
 

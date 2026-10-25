@@ -26,6 +26,21 @@
   --serif: "IM Fell English", Georgia, "DejaVu Sans", serif;
   --sc: "IM Fell English SC", Georgia, "DejaVu Sans", serif;
 }
+
+/* ---- The night edition: a paper-stock change, NOT a color theme (card
+   t_bc1e3666). The same broadsheet printed on warm near-black stock — ink
+   and paper swap, --mid and --rule follow, nothing else moves. Never pure
+   #000/#fff; body ink keeps ≥7:1 (14.3:1 as shipped) and --mid matches the
+   light stock's secondary-text ratio (7.07 vs 7.16). Set on <html> by the
+   inline script in app.html before first paint; the toggle lives in the
+   masthead rail. No accent colors, no blue links — ever. ---- */
+[data-theme="dark"] {
+  color-scheme: dark;
+  --ink: #e6e1d7;
+  --mid: #a89e8e;
+  --rule: #524d44;
+  --paper: #141210;
+}
 * {
   box-sizing: border-box;
 }
@@ -523,6 +538,16 @@ footer {
   letter-spacing: 0;
   font-size: 11px;
   color: var(--mid);
+}
+
+/* Night-edition toggle: a typographic rail control (NightToggle.svelte), not
+   chrome — .tool-btn carries the voice; the pressed state keeps the ❦-before
+   convention of a chosen verdict. */
+.night-toggle[aria-pressed="true"]::before {
+  content: "\2746\00a0";
+}
+.night-toggle .fl {
+  color: var(--rule);
 }
 
 .toolbar {

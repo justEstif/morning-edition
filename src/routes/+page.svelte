@@ -1,5 +1,6 @@
 <script lang="ts">
 	import '../app.css';
+	import NightToggle from '$lib/NightToggle.svelte';
 	import { markFor } from '$lib/domain/edition.js';
 	import type { EditionItem } from '$lib/domain/edition.js';
 	import { impression } from '$lib/impressions.js';
@@ -101,6 +102,8 @@
 		<span>† deep read ‡ brief ❦ captured ✳&#xFE0E; suggested</span><span class="fl">❦</span>
 		<a href="/panel">QuickStudy panel</a><span class="fl">·</span>
 		<a href="/grade">Grade this edition</a>
+		<span class="fl">❦</span>
+		<NightToggle />
 		{#if data.isDemo}<span class="fl">❦</span><span>demo edition — mock data only</span>{/if}
 	</div>
 

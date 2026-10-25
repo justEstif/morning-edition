@@ -1,5 +1,6 @@
 <script lang="ts">
 	import '../../app.css';
+	import NightToggle from '$lib/NightToggle.svelte';
 	import { impression } from '$lib/impressions.js';
 	import { dwellOpen } from '$lib/dwell.js';
 	import type { PageData } from './$types.js';
@@ -47,6 +48,7 @@
 	<div class="rail">
 		<span>{d.dateLong}</span><span class="fl">❦</span>
 		<span>† deep read ‡ brief ❦ captured ✳&#xFE0E; suggested</span><span class="fl">❦</span>
+		<NightToggle />
 		{#if d.isDemo}<span>demo edition — mock data only</span>{/if}
 	</div>
 

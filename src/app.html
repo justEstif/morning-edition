@@ -2,6 +2,20 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <!-- The night edition is chosen BEFORE first paint: stored manual choice
+         ("me-theme" in localStorage) wins, otherwise follow the system. Inline
+         and synchronous so a night load never flashes the light stock. -->
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem("me-theme");
+          var dark = stored
+            ? stored === "dark"
+            : window.matchMedia("(prefers-color-scheme: dark)").matches;
+          if (dark) document.documentElement.setAttribute("data-theme", "dark");
+        } catch (e) {}
+      })();
+    </script>
     <link rel="icon" href="%sveltekit.assets%/favicon.svg" type="image/svg+xml" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />

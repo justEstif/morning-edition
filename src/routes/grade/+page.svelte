@@ -1,5 +1,6 @@
 <script lang="ts">
 	import '../../app.css';
+	import NightToggle from '$lib/NightToggle.svelte';
 	import type { CorrectionsSummary, Reason, Verdict, VerdictPostBody } from '$lib/domain/feedback.js';
 	import type { PageData } from './$types.js';
 
@@ -97,6 +98,8 @@
 		<span>{d.dateLong}</span><span class="fl">❦</span>
 		<span id="grade-count">{gradedCount} of {d.rows.length} items graded</span><span class="fl">❦</span>
 		<span>{sessionCount} verdict{sessionCount === 1 ? '' : 's'} this visit</span>
+		<span class="fl">❦</span>
+		<NightToggle />
 		{#if d.isDemo}<span class="fl">❦</span><span>demo edition — mock data only</span>{/if}
 	</div>
 
