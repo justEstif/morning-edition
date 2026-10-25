@@ -97,6 +97,11 @@
 		<div class="grade-row" data-item-id={row.id}>
 			<div class="g-body">
 				<h3>{row.title}</h3>
+				{#if row.brief}
+					<p class="g-brief">{row.brief}</p>
+				{:else}
+					<p class="g-brief none">no brief — headline-only item</p>
+				{/if}
 				<p class="mark">{row.mark}</p>
 			</div>
 			<div class="g-btns screen-only">

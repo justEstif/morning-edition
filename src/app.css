@@ -95,6 +95,10 @@ footer { grid-column: 1 / -1; text-align:center; border-top:3px double var(--ink
 .grade-row h3 { font-family:var(--sc); font-weight:400; font-size:17px; line-height:1.25;
   margin:0; text-align:left; word-spacing:1px; }
 .grade-row .mark { margin-top:4px; }
+/* Grading with context: the brief rides inline (never folded — a verdict
+   shouldn't cost a tap), set small and columned under the headline */
+.grade-row .g-brief { font-size:13px; line-height:1.5; margin:7px 0 0; max-width:78ch; text-align:justify; hyphens:auto; }
+.grade-row .g-brief.none { font-style:italic; color:var(--mid); text-align:left; hyphens:none; }
 .grade-row .g-btns { white-space:nowrap; }
 #grade-count { font-style:normal; }
 
@@ -121,6 +125,29 @@ footer { grid-column: 1 / -1; text-align:center; border-top:3px double var(--ink
 .topic-box li:last-child { border-bottom:0; }
 .topic-box .mk { font-family:var(--sc); float:right; color:var(--mid); letter-spacing:2px; }
 .topic-box .src { display:block; font-style:italic; font-size:11px; color:var(--mid); margin-top:2px; }
+
+/* Folds: the brief lives behind a typographic fold (card t_dfe82b06) —
+   details/summary dressed in the mark language, never UI chrome: a ❧ fleuron
+   + small-caps "unfold the brief" that flips to "fold the brief" when open.
+   Print always unfolds (see @media print + the beforeprint handlers). */
+details.fold { display:block; }
+details.fold > summary { font-family:var(--sc); font-size:10.5px; letter-spacing:2px;
+  color:var(--mid); cursor:pointer; list-style:none; margin-top:8px; user-select:none; }
+details.fold > summary::-webkit-details-marker { display:none; }
+details.fold > summary::before { content:"\2767\00a0"; font-family:var(--serif); color:var(--rule); }
+details.fold > summary:hover { color:var(--ink); text-decoration:underline; }
+details.fold[open] > summary { color:var(--ink); }
+details.fold .fold-word::before { content:"unfold the brief"; }
+details.fold[open] .fold-word::before { content:"fold the brief"; }
+details.fold > .fold-body { font-size:13.5px; line-height:1.55; margin:8px 0 0;
+  text-align:justify; hyphens:auto; }
+details.fold > .fold-body::first-letter { font-size:32px; line-height:.85; float:left; padding:3px 6px 0 0; }
+
+/* Panel variant: condensed box, smaller set text, no drop cap */
+.topic-box details.fold > summary { margin-top:4px; font-size:10px; }
+.topic-box details.fold > .fold-body { font-size:12.5px; line-height:1.5; margin:6px 0 2px;
+  text-align:left; }
+.topic-box details.fold > .fold-body::first-letter { font-size:inherit; float:none; padding:0; }
 
 @media (max-width: 980px) {
   .page { grid-template-columns: repeat(6, 1fr); gap: 0 20px; }
@@ -152,4 +179,10 @@ footer { grid-column: 1 / -1; text-align:center; border-top:3px double var(--ink
   .screen-only { display:none !important; }
   .vote, .toolbar, .g-btns { display:none !important; }
   a { text-decoration:none; }
+  /* Folds print OPEN: the paper carries its substance on paper. The
+     content-visibility override reveals closed <details> in engines that
+     support ::details-content; the beforeprint handlers cover the rest. */
+  details.fold > summary { display:none !important; }
+  details.fold::details-content { display:block; content-visibility:visible; }
+  details.fold > .fold-body { margin-top:4px; }
 }

@@ -11,6 +11,19 @@
 	   the navigation). Existing state stays server-side, any device. */
 	const sessionId = crypto.randomUUID();
 
+	/* Folds print OPEN: beforeprint opens every fold (restored after). The
+	   @media print ::details-content rule covers engines where the event
+	   doesn't fire; together the paper never prints a closed fold. */
+	let foldStates = [];
+	function openFolds() {
+		foldStates = [...document.querySelectorAll('details.fold')].map((d) => d.open);
+		document.querySelectorAll('details.fold').forEach((d) => (d.open = true));
+	}
+	function restoreFolds() {
+		document.querySelectorAll('details.fold').forEach((d, i) => (d.open = foldStates[i] ?? false));
+		foldStates = [];
+	}
+
 	function trackClick(item) {
 		try {
 			fetch('/api/corrections', {
@@ -37,6 +50,8 @@
 	<title>The Morning Edition — {ed.dateLong}</title>
 	<meta name="description" content="Your personal morning edition, compiled at 7:00 AM." />
 </svelte:head>
+
+<svelte:window onbeforeprint={openFolds} onafterprint={restoreFolds} />
 
 <div class="page">
 	<div class="masthead">
@@ -82,7 +97,16 @@
 					{@const m = markFor(item)}
 					<div class="item {widthClass(section, i)}">
 						<h3><a href={item.url} onclick={() => trackClick(item)}>{item.title}</a></h3>
-						<p>{item.brief || item.title}</p>
+						{#if item.brief}
+							<!-- the fold: the item's actual brief, one typographic tap away -->
+							<details class="fold">
+								<summary><span class="fold-word"></span></summary>
+								<p class="fold-body">{item.brief}</p>
+							</details>
+						{:else}
+							<!-- no brief: keep the item's 3-row subgrid so marks stay baseline-aligned -->
+							<div class="fold-empty" aria-hidden="true"></div>
+						{/if}
 						<div class="markrow">
 							<span class="mark"><b>{m.mark} {m.label}</b>{#if item.captured_at} · captured {item.captured_at.slice(0, 10)}{/if}</span>
 						</div>

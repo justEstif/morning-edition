@@ -92,6 +92,16 @@ section. Marks are typographic only: `†` deep read, `‡` brief, `❦` capture
 `✳` suggested (might-like items). `shadow_score` is engine metadata and is
 never rendered; placement is never driven by it.
 
+Folds: on screen each item's brief sits behind a typographic fold (a ❧ fleuron
++ small-caps "unfold the brief", `<details>`-based, no UI chrome); the /panel
+topic boxes fold the same briefs, and /grade prints briefs inline unfolded so
+a verdict never costs a tap. Items without a brief render headline-only (the
+layout's subgrid keeps marks baseline-aligned). Print always unfolds: a
+beforeprint handler opens every fold and a `::details-content` print rule
+covers engines where the event doesn't fire — the paper never prints a closed
+fold. The 2-3-sentence brief contract above is the length budget; briefs are
+not truncated in the UI.
+
 ## Data directory (env `ME_DATA_DIR`)
 
 The app reads everything from one directory (`ME_DATA_DIR`, default

@@ -12,11 +12,13 @@ export async function load({ url }) {
 	const ed = shapeEdition(raw);
 	const topics = ed.sections.map((s) => ({
 		title: SECTION_TITLES[s.key],
-		// the panel shows headlines + marks only, source under each
+		// headlines + marks for the scan; the same brief as the broadsheet,
+		// one typographic fold away (card t_dfe82b06)
 		items: s.items.map((item) => ({
 			id: item.id,
 			title: item.title,
 			url: item.url,
+			brief: item.brief,
 			mark: markFor(item).mark,
 			source: item.source,
 			kind: markFor(item).label

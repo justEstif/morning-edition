@@ -3,11 +3,24 @@
 
 	let { data } = $props();
 	const d = $derived(data);
+
+	/* Folds print OPEN — same contract as the broadsheet (card t_dfe82b06). */
+	let foldStates = [];
+	function openFolds() {
+		foldStates = [...document.querySelectorAll('details.fold')].map((dt) => dt.open);
+		document.querySelectorAll('details.fold').forEach((dt) => (dt.open = true));
+	}
+	function restoreFolds() {
+		document.querySelectorAll('details.fold').forEach((dt, i) => (dt.open = foldStates[i] ?? false));
+		foldStates = [];
+	}
 </script>
 
 <svelte:head>
 	<title>The Morning Edition — QuickStudy Panel — {d.dateLong}</title>
 </svelte:head>
+
+<svelte:window onbeforeprint={openFolds} onafterprint={restoreFolds} />
 
 <div class="page">
 	<div class="masthead">
@@ -32,6 +45,12 @@
 							<span class="mk">{item.mark}</span>
 							<a href={item.url}>{item.title}</a>
 							<span class="src">{item.kind} · via {item.source}</span>
+							{#if item.brief}
+								<details class="fold">
+									<summary><span class="fold-word"></span></summary>
+									<p class="fold-body">{item.brief}</p>
+								</details>
+							{/if}
 						</li>
 					{/each}
 				</ul>

@@ -16,7 +16,8 @@ export async function load({ url }) {
 	for (const s of ed.sections) {
 		for (const item of s.items) {
 			const m = markFor(item);
-			rows.push({ id: item.id, title: item.title, url: item.url, source: item.source, mark: `${m.mark} ${m.label}` });
+			// brief rides along: grade with context, not headline-only
+			rows.push({ id: item.id, title: item.title, url: item.url, source: item.source, brief: item.brief, mark: `${m.mark} ${m.label}` });
 		}
 	}
 	return { date: ed.date, dateLong: ed.dateLong, rows, itemCount: ed.itemCount, isDemo: IS_DEMO };
