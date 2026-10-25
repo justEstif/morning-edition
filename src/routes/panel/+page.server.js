@@ -1,6 +1,33 @@
 import { error } from '@sveltejs/kit';
-import { loadEdition, IS_DEMO } from '$lib/server/store.js';
+import { loadEdition, loadHighlights, IS_DEMO } from '$lib/server/store.js';
 import { shapeEdition, SECTION_TITLES, markFor } from '$lib/edition.js';
+
+const MARK_TEXT_MAX = 280;
+
+/** Group synced Readeck highlights by the section their item sits in today;
+ *  anything whose item isn't in this edition lands in `earlier`. */
+function groupMarks(raw, highlights) {
+	const sectionOf = new Map((raw?.items || []).map((it) => [it.id, it.section]));
+	const bySection = {};
+	const earlier = [];
+	for (const h of highlights) {
+		const mark = {
+			id: h.annotation_id,
+			text: String(h.text || '').slice(0, MARK_TEXT_MAX),
+			note: h.note || '',
+			title: h.title || h.url || '',
+			url: h.url || '',
+			created: String(h.created || '').slice(0, 10)
+		};
+		const section = sectionOf.get(h.item_id);
+		if (section) {
+			(bySection[section] ||= []).push(mark);
+		} else {
+			earlier.push(mark);
+		}
+	}
+	return { bySection, earlier };
+}
 
 /** QuickStudy panel — the same edition data, condensed into topic boxes. */
 export async function load({ url }) {
@@ -11,6 +38,7 @@ export async function load({ url }) {
 	}
 	const ed = shapeEdition(raw);
 	const topics = ed.sections.map((s) => ({
+		key: s.key,
 		title: SECTION_TITLES[s.key],
 		// headlines + marks for the scan; the same brief as the broadsheet,
 		// one typographic fold away (card t_dfe82b06)
@@ -24,5 +52,15 @@ export async function load({ url }) {
 			kind: markFor(item).label
 		}))
 	}));
-	return { date: ed.date, dateLong: ed.dateLong, topics, itemCount: ed.itemCount, isDemo: IS_DEMO };
+	const highlights = await loadHighlights();
+	const marks = groupMarks(raw, highlights);
+	return {
+		date: ed.date,
+		dateLong: ed.dateLong,
+		topics,
+		marks,
+		markCount: highlights.length,
+		itemCount: ed.itemCount,
+		isDemo: IS_DEMO
+	};
 }

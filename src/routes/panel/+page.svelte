@@ -34,7 +34,7 @@
 		{#if d.isDemo}<span>demo edition — mock data only</span>{/if}
 	</div>
 
-	<div class="panel-cap">QuickStudy panel — the same {d.itemCount} stories, condensed for a fast scan</div>
+	<div class="panel-cap">QuickStudy panel — the same {d.itemCount} stories, condensed for a fast scan{d.markCount ? ` · ${d.markCount} of your highlights quoted below` : ''}</div>
 	<div class="panel-grid">
 		{#each d.topics as topic (topic.title)}
 			<div class="topic-box">
@@ -54,8 +54,34 @@
 						</li>
 					{/each}
 				</ul>
+				{#if d.marks.bySection[topic.key]?.length}
+					<div class="marks">
+						<h3>From your marks</h3>
+						{#each d.marks.bySection[topic.key] as m (m.id)}
+							<blockquote>
+								<p class="mark-quote">&ldquo;{m.text}&rdquo;</p>
+								{#if m.note}<p class="mark-note">your note: {m.note}</p>{/if}
+								<a class="mark-src" href={m.url}>{m.title}</a>
+							</blockquote>
+						{/each}
+					</div>
+				{/if}
 			</div>
 		{/each}
+		{#if d.marks.earlier.length}
+			<div class="topic-box">
+				<h2>From your marks — earlier</h2>
+				<div class="marks">
+					{#each d.marks.earlier as m (m.id)}
+						<blockquote>
+							<p class="mark-quote">&ldquo;{m.text}&rdquo;</p>
+							{#if m.note}<p class="mark-note">your note: {m.note}</p>{/if}
+							<a class="mark-src" href={m.url}>{m.title}</a>
+						</blockquote>
+					{/each}
+				</div>
+			</div>
+		{/if}
 	</div>
 
 	<div class="toolbar screen-only">

@@ -69,6 +69,18 @@ const GRADE_VALUES = ['deep-read', 'skim', 'capture'];
  *  session+item are annotated flip_ms (burst → down-weight, not last-write-wins). */
 export const FLIP_MS = 2000;
 
+/** Readeck highlights synced by the pipeline (highlights.json on the volume,
+ *  written by sync_signals.py). Returns [] when absent — the panel simply
+ *  omits the 'From your marks' study boxes. */
+export async function loadHighlights() {
+	try {
+		const rows = JSON.parse(await fs.readFile(path.join(DATA_DIR, 'highlights.json'), 'utf8'));
+		return Array.isArray(rows) ? rows : [];
+	} catch {
+		return [];
+	}
+}
+
 export function editionPath(date) {
 	if (date) {
 		if (!DATE_RE.test(date)) return null;
