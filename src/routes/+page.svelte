@@ -238,6 +238,7 @@
 		<a class="grade-link" href="/panel">QuickStudy panel</a>
 		<span class="fl">❦</span>
 		<a class="grade-link" href="/grade">Grade this edition →</a>
+		{#if data.isAdmin}<span class="fl">❦</span><a class="grade-link" href="/admin">Admin</a>{/if}
 		<span class="fl">❦</span>
 		<span class="vote-note">clicks post to the private ledger on this server · editorial calls live at the grading desk</span>
 	</div>
