@@ -63,10 +63,7 @@ export function validPreReadText(text: unknown): text is string {
  *  (Readeck) items are out of scope for the ladder's first round, and an
  *  item with no in-paper reader text has nothing to ground a pre-read in
  *  — both keep today's page exactly as it is. */
-export function preReadEligible(item: {
-  has_reader?: boolean;
-  section: string;
-}): boolean {
+export function preReadEligible(item: { has_reader?: boolean; section: string }): boolean {
   return item.has_reader === true && item.section !== "captured";
 }
 
@@ -85,6 +82,18 @@ export interface PreReads {
   prereads: Record<string, PreReadEntry>;
 }
 
+/** The shared voice for BOTH pre-read writers (pipeline batch at build time,
+ *  server lazy tier) — one prompt, one contract, no drift. Pure data, so it
+ *  lives in the domain beside the bounds it must respect. */
+export const PREREAD_SYSTEM = `You write pre-reads for a personal newspaper: "the five-minute version" of an article, from its extracted text alone. The reader decides, after your pre-read, whether the full piece earns their time.
+
+Rules, absolute:
+- Grounded ONLY in the given material. Never add facts, numbers, names, context, or interpretations the material does not contain. If you are not sure the material says it, leave it out.
+- Cover: the actual arguments (not a table of contents), what is contentious or uncertain, what the piece assumes, and who should bother reading it in full and why.
+- About ${PRE_READ_TARGET_WORDS} words of plain prose in newspaper register. Paragraph breaks separate the moves; no bullet points, no markdown, no headings.
+- No teaser phrasing ("read on", "this article explores", "the author argues that we must"), no first person, no flattery of the piece.
+- Output the pre-read text only — nothing else.`;
+
 function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
@@ -101,9 +110,17 @@ export function parsePreReads(raw: unknown): PreReads | null {
   for (const [itemId, entry] of Object.entries(raw.prereads)) {
     if (!isPlainObject(entry)) return null;
     if (!validPreReadText(entry.text)) return null;
-    if (entry.model !== undefined && (typeof entry.model !== "string" || entry.model.length === 0 || entry.model.length > 100))
+    if (
+      entry.model !== undefined &&
+      (typeof entry.model !== "string" || entry.model.length === 0 || entry.model.length > 100)
+    )
       return null;
-    if (entry.generated_at !== undefined && (typeof entry.generated_at !== "string" || entry.generated_at.length === 0 || entry.generated_at.length > 40))
+    if (
+      entry.generated_at !== undefined &&
+      (typeof entry.generated_at !== "string" ||
+        entry.generated_at.length === 0 ||
+        entry.generated_at.length > 40)
+    )
       return null;
     prereads[itemId] = {
       text: entry.text,

@@ -951,6 +951,59 @@ details.fold > .fold-body {
   font-size: 14px;
   margin: 0 0 0.8em;
 }
+/* The depth ladder's pre-read (card t_2f96c207): "the five-minute version"
+   between the headline and the full piece — typographically fenced like the
+   engine's marginalia (italic register, the engine's voice is never
+   confusable with the author's text), but set IN the column because it is
+   the story's stand-in, not a side note. The ✶ continue is a real <details>
+   fold in the mark language; opening it is the deep-read signal. All colors
+   ride the data-theme vars — night mode is inherited, nothing new. */
+.pre-read {
+  margin: 6px 0 22px;
+  padding-left: 18px;
+  border-left: 2px solid var(--rule);
+}
+.pre-read-cap {
+  font-family: var(--sc);
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--mid);
+  margin-bottom: 10px;
+}
+.pre-read p {
+  font-style: italic;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--ink);
+  margin: 0 0 0.9em;
+}
+.pre-read .pre-read-lede {
+  font-size: 17.5px;
+}
+details.continue {
+  display: block;
+  margin: 4px 0 8px;
+}
+details.continue > summary {
+  font-family: var(--sc);
+  font-size: 12px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--mid);
+  cursor: pointer;
+  list-style: none;
+  margin-bottom: 12px;
+}
+details.continue > summary::-webkit-details-marker {
+  display: none;
+}
+details.continue > summary:hover {
+  color: var(--ink);
+}
+details.continue[open] > summary {
+  margin-bottom: 18px;
+}
 .digest-note {
   font-style: italic;
 }
@@ -1098,6 +1151,14 @@ details.fold > .fold-body {
   .digest-main .digest-lede {
     font-size: 18px;
   }
+  /* Pre-read (t_2f96c207) tames down with the column. */
+  .pre-read {
+    padding-left: 14px;
+  }
+  .pre-read p,
+  .pre-read .pre-read-lede {
+    font-size: 15.5px;
+  }
   .verdict-card .grade-btn,
   .verdict-card .chip-btn {
     font-size: 12.5px;
@@ -1216,5 +1277,20 @@ details.fold > .fold-body {
   .digest-raw::details-content {
     display: block;
     content-visibility: visible;
+  }
+  /* The depth ladder prints the FULL piece (card t_2f96c207) — the ✶
+     continue is a screen affordance; the pre-read sets above the body. */
+  details.continue > summary {
+    display: none !important;
+  }
+  details.continue::details-content {
+    display: block;
+    content-visibility: visible;
+  }
+  .pre-read {
+    margin-bottom: 18px;
+  }
+  .pre-read p {
+    font-style: normal;
   }
 }

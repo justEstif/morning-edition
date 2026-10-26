@@ -11,9 +11,7 @@ import {
 } from "./preread.js";
 
 const okText =
-  "The piece argues that memory safety is a migration problem, not a rewrite problem. ".repeat(
-    6,
-  ); // well over PRE_READ_MIN_CHARS, plain prose
+  "The piece argues that memory safety is a migration problem, not a rewrite problem. ".repeat(6); // well over PRE_READ_MIN_CHARS, plain prose
 
 const valid = {
   edition_date: "2026-10-26",
@@ -100,9 +98,7 @@ describe("parsePreReads", () => {
 
   it("rejects malformed entries (parsed, never trusted)", () => {
     expect(parsePreReads({ edition_date: "2026-10-26", prereads: { x: "string" } })).toBeNull();
-    expect(
-      parsePreReads({ edition_date: "2026-10-26", prereads: { x: { text: "" } } }),
-    ).toBeNull();
+    expect(parsePreReads({ edition_date: "2026-10-26", prereads: { x: { text: "" } } })).toBeNull();
     expect(
       parsePreReads({ edition_date: "2026-10-26", prereads: { x: { text: "short" } } }),
     ).toBeNull();

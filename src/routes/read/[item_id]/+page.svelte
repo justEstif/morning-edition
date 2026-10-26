@@ -157,6 +157,39 @@
 		}
 	}
 	const host = $derived(hostOf(d.item.url));
+
+	/* The depth ladder (card t_2f96c207, spike 002 variant B): the pre-read
+	   stacks under the headline; the full piece stays behind the explicit
+	   ✶ continue until asked for. OPENING IT IS THE DEEP-READ SIGNAL — one
+	   additive `escalate` event per page load, owner-session only (anonymous
+	   readers write nothing, t_43e48cd0; closing and reopening doesn't
+	   double-count — the commitment, not the toggle, is the datum). */
+	const preReadParas = $derived(
+		(d.preRead ?? '').split(/\n{2,}/).map((p) => p.trim()).filter(Boolean)
+	);
+	let escalated = false;
+	function onContinueToggle(ev: Event) {
+		if (!(ev.currentTarget instanceof HTMLDetailsElement) || !ev.currentTarget.open) return;
+		if (escalated || !d.isOwner) return;
+		escalated = true;
+		try {
+			fetch('/api/corrections', {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				keepalive: true,
+				body: JSON.stringify({
+					type: 'escalate',
+					session_id: sessionId,
+					item_id: d.item.id,
+					item_url: d.item.url,
+					source: d.item.source,
+					edition_date: d.editionDate
+				})
+			}).catch(() => {});
+		} catch {
+			// tracking must never break reading
+		}
+	}
 </script>
 
 <svelte:head>
@@ -189,10 +222,48 @@
 		>
 			<p class="kicker"><b>{m.mark} {m.label}</b> · via {d.item.source}{#if d.item.captured_at} · captured {d.item.captured_at.slice(0, 10)}{/if}</p>
 			<h1 class="display">{d.item.title}</h1>
-			<!-- Extension point (depth ladder, t_2f96c207): a pre-read tier slots
-			     HERE, between headline and body — the grid below is unaffected. -->
-
-			{#if digestMode}
+			{#if d.preRead}
+				<!-- The depth ladder's pre-read tier (card t_2f96c207, spike 002
+				     variant B): the five-minute version — the actual arguments,
+				     the contentious parts, the assumptions, who should bother.
+				     It stacks UNDER the headline; the brief stays in the margin
+				     (the 15-second artifact is unchanged); the full piece waits
+				     behind the explicit ✶ below. -->
+				<section class="pre-read" aria-label="Pre-read — the five-minute version">
+					<div class="pre-read-cap">
+						The five-minute version <span class="fl">❦</span> ≈{d.preReadMinutes} min read
+					</div>
+					{#each preReadParas as p, i (i)}
+						<p class={i === 0 ? 'pre-read-lede' : ''}>{p}</p>
+					{/each}
+				</section>
+				<details class="continue" ontoggle={onContinueToggle}>
+					<summary>✶ Continue to the full piece</summary>
+					<div class="continue-body">
+						{#if digestMode}
+							<div class="digest-main">
+								{#each digestParagraphs as p, i (i)}
+									<p class={i === 0 ? 'digest-lede' : ''}>{p}</p>
+								{/each}
+							</div>
+							<details class="digest-raw">
+								<summary>The raw extract, as scraped</summary>
+								<div class="reader-body digest-raw-body">
+									{#each paragraphs as p, i (i)}
+										<p>{p}</p>
+									{/each}
+								</div>
+							</details>
+						{:else if d.text}
+							<div class="reader-body">
+								{#each paragraphs as p, i (i)}
+									<p class={i === dropIdx ? 'dc' : ''}>{p}</p>
+								{/each}
+							</div>
+						{/if}
+					</div>
+				</details>
+			{:else if digestMode}
 				<!-- Reader quality gate (card t_b3782402): the source gave little,
 				     so the paper's digest is the story — labeled in the margin,
 				     not styled as a full article. The raw extract sits below the

@@ -1,10 +1,21 @@
 import { error } from "@sveltejs/kit";
 import { longDate, SECTION_TITLES } from "$lib/domain/edition.js";
+import { preReadEligible, readingMinutes } from "$lib/domain/preread.js";
 import { editions, readerArticles } from "$lib/server/store.js";
+import { prereads } from "$lib/server/preread.js";
 import type { PageServerLoad } from "./$types.js";
 
 /** The in-paper reader (card t_f06c164b, spike 002 variant B — marginalia):
  *  /read/<item_id> serves the item's extracted full text inside the paper.
+ *
+ *  Depth ladder (card t_2f96c207): successfully extracted WIRE items get a
+ *  pre-read tier between the headline and the body — the ~800-word
+ *  "five-minute version" (spike 002 variant B flow: headline → pre-read →
+ *  "✶ continue to the full piece" → body). Lead + secondary pre-reads are
+ *  pre-generated at build time (pipeline/preread.ts, prereads.json); the
+ *  briefs tier generates lazily on first request and serves from cache.
+ *  Extraction-failed items and captured items are INELIGIBLE — they render
+ *  today's page exactly as before (wire note / full text), no tier.
  *
  *  Fallback contract: an item with NO extracted text (extraction failed, or
  *  the file is absent/corrupt) still gets a page — the designed "wire note"
@@ -25,6 +36,17 @@ export const load: PageServerLoad = async ({ params, url, locals }) => {
   const arts = await readerArticles.load();
   const article =
     arts && arts.edition_date === raw.edition_date ? (arts.articles[item.id] ?? null) : null;
+
+  // Pre-read tier (above): stored batch entry first; eligible items without
+  // one (the briefs tier's long tail) generate lazily + cache. Any failure
+  // or keyless deploy degrades to null — the page renders without the tier.
+  let preRead: string | null = null;
+  if (article?.text && preReadEligible(item)) {
+    const stored = await prereads.load();
+    const hit = stored?.edition_date === raw.edition_date ? stored.prereads[item.id] : undefined;
+    preRead =
+      hit?.text ?? (await prereads.ensureFor({ id: item.id, title: item.title }, article.text));
+  }
 
   // "More in this section" (spike decision #5): the cheap recommendation-loop
   // exit — same section, presentation order, this item skipped, in-paper
@@ -52,6 +74,10 @@ export const load: PageServerLoad = async ({ params, url, locals }) => {
     // carries the digest (parsed, never trusted on both sides).
     readerMode: item.reader_mode ?? null,
     digest: article?.digest ?? null,
+    // Depth ladder (t_2f96c207): the pre-read text + its word-count-derived
+    // reading-time estimate (triage decision: computed, never fixed).
+    preRead,
+    preReadMinutes: preRead ? readingMinutes(preRead) : null,
     more,
     isDemo: editions.isDemo,
     // Reading is public (t_43e48cd0); owner affordances — the verdict card,
