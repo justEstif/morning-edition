@@ -33,6 +33,12 @@
 	}
 
 	const paragraphs = $derived((d.text ?? '').split(/\n{2,}/).map((p) => p.trim()).filter(Boolean));
+	/* The cap opens the PROSE, not boilerplate — extracted text often starts
+	   with a dateline or scraped fragment ("30 Apr, 2026"), and a two-inch
+	   "3" atop that is comedy, not typography. First paragraph with real
+	   substance carries the cap; earlier fragments still print, uncapped. */
+	const DROP_CAP_MIN_CHARS = 60;
+	const dropIdx = $derived(paragraphs.findIndex((p) => p.length >= DROP_CAP_MIN_CHARS));
 
 	const sessionId = crypto.randomUUID();
 	const VERDICTS: readonly Verdict[] = ['deep-read', 'skim', 'drop'];
@@ -165,7 +171,7 @@
 			{#if d.text}
 				<div class="reader-body">
 					{#each paragraphs as p, i (i)}
-						<p class={i === 0 ? 'dc' : ''}>{p}</p>
+						<p class={i === dropIdx ? 'dc' : ''}>{p}</p>
 					{/each}
 				</div>
 			{:else}
