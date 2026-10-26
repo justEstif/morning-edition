@@ -80,6 +80,10 @@
 									<summary><span class="fold-word"></span></summary>
 									<p class="fold-body">{item.brief}</p>
 								</details>
+							{:else if item.skim_summary}
+								<!-- skimmed item, no brief: the AI summary renders inline
+								    (card t_1e178af7) — no clicking out to read the gist -->
+								<p class="skim-note"><span class="skim-label">skim summary</span>{item.skim_summary}</p>
 							{/if}
 						</li>
 					{/each}

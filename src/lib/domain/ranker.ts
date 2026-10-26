@@ -224,6 +224,12 @@ export function signalValue(ev: RankerEvent): number | null {
       if (ev.value === "deep-read") return 1.0;
       if (ev.value === "skim") return -0.4;
       if (ev.value === "drop") return -0.7;
+      // Explicit not-interested (card t_1e178af7): the strongest negative the
+      // reader can type — stronger than drop because it scopes the topic/
+      // source, not just the item. Suppression lists themselves are the
+      // recommendations loop's job (t_b45f60dc); here it demotes via the
+      // same per-topic/per-source multipliers as every other signal.
+      if (ev.value === "skip") return -1.0;
       if (ev.value === "capture") return 0.6; // legacy v1 grade
       return null;
     }
@@ -504,7 +510,7 @@ export function computeGateStats(inputs: RankerInputs): GateStats {
     if (ev.type !== "verdict" && ev.type !== "grade") continue;
     if (!ev.item_id || !ev.value) continue;
     if (ev.value === "capture") continue; // legacy grade, not a triage verdict
-    if (!["deep-read", "skim", "drop"].includes(ev.value)) continue;
+    if (!["deep-read", "skim", "drop", "skip"].includes(ev.value)) continue;
     if (!withinDays(ev.ts, asOf, GATE_WINDOW_DAYS)) continue;
     verdictsInWindow += 1;
     const prev = latest.get(ev.item_id);
@@ -515,15 +521,18 @@ export function computeGateStats(inputs: RankerInputs): GateStats {
     const suggestion = suggestVerdict(byItem.get(itemId) ?? [], isNegativeFor(ev, facts));
     if (suggestion === null) continue;
     suggestable += 1;
-    if (suggestion === ev.value) agreements += 1;
+    // skip (explicit not-interested) lands in the negative bucket: it agrees
+    // with a drop suggestion and disagrees with deep-read/skim (t_1e178af7).
+    const actual = ev.value === "skip" ? "drop" : ev.value;
+    if (suggestion === actual) agreements += 1;
   }
   const rate = suggestable > 0 ? round4(agreements / suggestable) : null;
   return {
     bar: GATE_BAR,
     window_days: GATE_WINDOW_DAYS,
     definition:
-      "share of the reader's trailing-14d verdicts (deep-read|skim|drop, one per " +
-      "item, latest wins) where the engine's suggestion — derived ONLY from that " +
+      "share of the reader's trailing-14d verdicts (deep-read|skim|drop|skip, one per " +
+      "item, latest wins; skip counts in the drop bucket) where the engine's suggestion — derived ONLY from that " +
       "item's non-verdict engagement: deep evidence (dwell>=60s, progress>=80%, " +
       "capture/star/highlight) suggests deep-read, lighter engagement suggests " +
       "skim, zero engagement on a registry negative-flagged story suggests drop, " +

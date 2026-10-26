@@ -65,7 +65,12 @@ export const load: PageServerLoad = async ({ params, url, locals }) => {
     const stored = await prereads.load();
     const hit = stored?.edition_date === raw.edition_date ? stored.prereads[item.id] : undefined;
     preRead =
-      hit?.text ?? (await prereads.ensureFor({ id: item.id, title: item.title }, article.text));
+      hit?.text ??
+      (await prereads.ensureFor(
+        { id: item.id, title: item.title },
+        article.text,
+        raw.edition_date,
+      ));
   }
 
   // "More in this section" (spike decision #5): the cheap recommendation-loop

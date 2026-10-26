@@ -62,6 +62,9 @@ export const load: PageServerLoad = async ({ url }) => {
       title: item.title,
       url: item.url,
       brief: item.brief,
+      // AI skim summary (card t_1e178af7): rendered on brief-less items so a
+      // skimmed piece reads inline instead of title-link-only
+      skim_summary: item.skim_summary,
       mark: markFor(item).mark,
       source: item.source,
       kind: markFor(item).label,

@@ -10,12 +10,15 @@
 	/** One grading-desk row as produced by the page's server load. */
 	type GradeRow = PageData['rows'][number];
 
-	/* Grading desk v2 — one pass, one verdict (deep-read | skim | drop). A
-	   Readeck save is the capture signal, so `capture` is gone; the separate
+	/* Grading desk v2 — one pass, one verdict (deep-read | skim | drop | skip).
+	   A Readeck save is the capture signal, so `capture` is gone; the separate
 	   vote pass is gone (its editorial signal lives in the optional reason
-	   chips). Every POST carries the v2 envelope; re-taps within this session
-	   SUPERSEDE the earlier event instead of contradicting it. */
-	const VERDICTS: readonly Verdict[] = ['deep-read', 'skim', 'drop'];
+	   chips). `skip` (card t_1e178af7) is the explicit not-interested verdict —
+	   the strongest negative: it scopes the item's topic/source for future
+	   editions, and the reason chips say why. Every POST carries the v2
+	   envelope; re-taps within this session SUPERSEDE the earlier event instead
+	   of contradicting it. */
+	const VERDICTS: readonly Verdict[] = ['deep-read', 'skim', 'drop', 'skip'];
 	const REASONS: Reason[] = ['wrong-angle', 'already-read', 'wrong-source', 'dup', 'low-quality'];
 
 	const sessionId = crypto.randomUUID();
@@ -92,7 +95,7 @@
 	<div class="masthead">
 		<div class="over">Your Personal Morning Edition</div>
 		<h1>The Grading Desk</h1>
-		<div class="under">one pass, one verdict — deep read, skim, or drop</div>
+		<div class="under">one pass, one verdict — deep read, skim, drop, or not interested</div>
 	</div>
 	<div class="rail">
 		<span>{d.dateLong}</span><span class="fl">❦</span>
@@ -117,7 +120,7 @@
 			<div class="g-btns screen-only">
 				{#each VERDICTS as v, vi (v)}
 					{#if vi > 0}<span class="vsep">·</span>{/if}
-					<button class="grade-btn" class:picked={verdicts[row.id]?.value === v} onclick={() => verdict(row, v)}>{v === 'deep-read' ? 'deep read' : v}</button>
+					<button class="grade-btn" class:picked={verdicts[row.id]?.value === v} onclick={() => verdict(row, v)}>{v === 'deep-read' ? 'deep read' : v === 'skip' ? 'not interested' : v}</button>
 				{/each}
 			</div>
 			{#if verdicts[row.id]}

@@ -58,6 +58,24 @@ export function validPreReadText(text: unknown): text is string {
   );
 }
 
+/** The lazy tier's read-modify-write, pure: merge one freshly generated
+ *  entry into the stored file state. The edition date is REQUIRED — a
+ *  dateless prereads.json is unreadable (parsePreReads → null), so a lazy
+ *  write that dropped the date would make the cache miss forever and
+ *  re-generate on every request (live incident, 2026-10-26). A current file
+ *  from a previous edition day is replaced, not appended to: the file holds
+ *  exactly one edition's tiers. */
+export function withPreReadEntry(
+  current: PreReads | null,
+  editionDate: string,
+  itemId: string,
+  entry: PreReadEntry,
+): PreReads {
+  const prereads = current && current.edition_date === editionDate ? { ...current.prereads } : {};
+  prereads[itemId] = entry;
+  return { edition_date: editionDate, prereads };
+}
+
 /** Which edition items carry the pre-read tier (pure, shared by the route
  *  and the pipeline): successfully extracted WIRE items only. Captured
  *  (Readeck) items are out of scope for the ladder's first round, and an

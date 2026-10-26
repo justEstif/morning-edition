@@ -33,7 +33,16 @@ import { DATE_RE } from "./edition.js";
 
 /* ----- Unions ----- */
 
-export type Verdict = "deep-read" | "skim" | "drop";
+/** Verdicts on the grading desk (v2 + skip, card t_1e178af7). `skip` is the
+ *  EXPLICIT not-interested verdict — the strongest negative signal the reader
+ *  can give an item, meaning "don't show me this topic/source again"; the
+ *  optional reason chip (wrong-angle|wrong-source|dup|…) scopes WHY. It is
+ *  deliberately distinct from the DERIVED `skip` event type below (implicit,
+ *  zero-engagement exposure, trusted sync path): type:"verdict", value:"skip"
+ *  vs type:"skip" — same word, different lanes, never conflated downstream.
+ *  Suppression semantics + the t_b45f60dc handoff are documented in
+ *  docs/decisions/2026-10-26-skip-verdict-and-skim-summaries.md. */
+export type Verdict = "deep-read" | "skim" | "drop" | "skip";
 export type Reason = "wrong-angle" | "already-read" | "wrong-source" | "dup" | "low-quality";
 export type LedgerEventType =
   | "verdict"
@@ -54,7 +63,7 @@ export type PublicCorrectionType = "verdict" | "click" | "vote" | "grade";
  *  `skip` joins them: it is DERIVED (analysis/builder), never human-typed. */
 export type SyncEventType = "read_progress" | "star" | "capture" | "highlight" | "skip";
 
-export const VERDICT_VALUES: Verdict[] = ["deep-read", "skim", "drop"];
+export const VERDICT_VALUES: Verdict[] = ["deep-read", "skim", "drop", "skip"];
 export const REASONS: Reason[] = [
   "wrong-angle",
   "already-read",
@@ -429,7 +438,7 @@ export function validateCorrection(body: unknown, deps: StampDeps): LedgerEvent 
 
   if (type === "verdict") {
     if (!VERDICT_VALUES.includes(body.value as Verdict)) {
-      throw new Error("verdict value must be deep-read|skim|drop");
+      throw new Error("verdict value must be deep-read|skim|drop|skip");
     }
     const out: VerdictEvent = { ...ev, type, value: body.value as Verdict };
     if (body.reason !== undefined && body.reason !== null) {

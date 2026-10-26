@@ -703,6 +703,28 @@ footer {
   margin-top: 2px;
 }
 
+/* Skim summaries (card t_1e178af7): the AI skim of a brief-less item, set
+   inline so the piece reads without clicking out. Same register as the
+   fold-body — small, ragged right, generous leading; the label is agate
+   small caps. pre-line keeps the summary's bullet lines intact. */
+.topic-box .skim-note {
+  font-size: 12.5px;
+  line-height: 1.5;
+  letter-spacing: 0.01em;
+  margin: 6px 0 2px;
+  text-align: left;
+  white-space: pre-line;
+}
+.topic-box .skim-note .skim-label {
+  display: block;
+  font-family: var(--sc);
+  font-size: 10px;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--mid);
+  margin: 2px 0 3px;
+}
+
 /* From your marks: his own Readeck highlights quoted back, per topic box */
 .marks {
   margin-top: 10px;

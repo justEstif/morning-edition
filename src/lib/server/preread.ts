@@ -23,6 +23,7 @@ import {
   PREREAD_SYSTEM,
   parsePreReads,
   validPreReadText,
+  withPreReadEntry,
   type PreReadEntry,
   type PreReads,
 } from "$lib/domain/preread.js";
@@ -49,21 +50,34 @@ async function readPrereads(): Promise<PreReads | null> {
   }
 }
 
-/** Atomic-ish read-modify-write (temp + rename) so a torn file can never
- *  replace a good one; concurrent generations collapse through the
- *  in-process inflight map below, and a last-writer-wins race across
- *  processes re-derives the same grounded text — acceptable at personal
- *  scale. */
+/** Atomic-ish write of the full merged file (temp + rename) so a torn file
+ *  can never replace a good one. The merge itself is the domain's
+ *  withPreReadEntry; concurrent generations collapse through the in-process
+ *  inflight map above, and a last-writer-wins race across processes
+ *  re-derives the same grounded text — acceptable at personal scale. */
+async function writeEntry(merged: PreReads): Promise<void> {
+  const out = JSON.stringify(merged, null, 1);
+  const tmp = `${prereadPath()}.tmp`;
+  await fs.mkdir(DATA_DIR, { recursive: true });
+  await fs.writeFile(tmp, out, "utf8");
+  await fs.rename(tmp, prereadPath());
+}
 
 export const prereads: PrereadSource & {
   /** The lazy tier: generate + cache one item's pre-read. Returns the entry
    *  text when one exists or was just generated; null when the item stays
-   *  tier-less (no key, generation failure, out-of-bounds output). */
-  ensureFor(item: { id: string; title: string }, articleText: string): Promise<string | null>;
+   *  tier-less (no key, generation failure, out-of-bounds output). The
+   *  edition date comes from the route (the request's edition) — the cached
+   *  file must carry it or the cache can never hit (domain withPreReadEntry). */
+  ensureFor(
+    item: { id: string; title: string },
+    articleText: string,
+    editionDate: string,
+  ): Promise<string | null>;
 } = {
   load: readPrereads,
 
-  async ensureFor(item, articleText): Promise<string | null> {
+  async ensureFor(item, articleText, editionDate): Promise<string | null> {
     const key = `${item.id}`;
     const inflight = inflightFor(key, async () => {
       const existing = await readPrereads();
@@ -76,7 +90,7 @@ export const prereads: PrereadSource & {
         model: MODEL,
         generated_at: new Date().toISOString(),
       };
-      await appendEntry(existing?.edition_date, key, entry);
+      await writeEntry(withPreReadEntry(existing, editionDate, key, entry));
       return text;
     });
     return inflight;
@@ -91,22 +105,6 @@ function inflightFor(key: string, task: () => Promise<string | null>): Promise<s
   const p = task().finally(() => INFLIGHT.delete(key));
   INFLIGHT.set(key, p);
   return p;
-}
-
-/** Read-modify-write one entry into prereads.json (temp + rename). */
-async function appendEntry(
-  editionDate: string | undefined,
-  itemId: string,
-  entry: PreReadEntry,
-): Promise<void> {
-  const current = await readPrereads();
-  const prereads = current && current.edition_date === editionDate ? { ...current.prereads } : {};
-  prereads[itemId] = entry;
-  const out = JSON.stringify({ edition_date: editionDate, prereads }, null, 1);
-  const tmp = `${prereadPath()}.tmp`;
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  await fs.writeFile(tmp, out, "utf8");
-  await fs.rename(tmp, prereadPath());
 }
 
 /** The lazy LLM call — grounded in title + stored text only. One attempt,

@@ -69,6 +69,13 @@ export interface EditionItem {
    *  pipeline builds; parse rejects a non-string, never its absence (older
    *  editions stay valid — the change is additive, ids stable). */
   original_title?: string;
+  /** AI skim summary (card t_1e178af7): the reading-triage lane's summary for
+   *  this URL, merged into edition.json at BUILD time from
+   *  ~/.hermes/reading-triage/archive.json (the builder is the only writer;
+   *  matched by normalized URL). The QuickStudy panel renders it on items
+   *  with no brief, so skimmed items read without clicking out. Additive —
+   *  parsed, never trusted; absence is normal (most items were never skimmed). */
+  skim_summary?: string;
 }
 
 /** Raw edition JSON written by the builder. */
@@ -145,7 +152,9 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
  *  Required string fields: id, title, url, source, section, kind, tier
  *  (tier must be one of TIERS — absent or unknown tiers invalidate the
  *  item, the builder is the only writer); optional string fields: brief,
- *  captured_at, original_title (feed-title provenance, card t_21c0c195); optional explore metadata: explore_flag (boolean) +
+ *  captured_at, original_title (feed-title provenance, card t_21c0c195),
+ *  skim_summary (AI skim summary merged by the builder, card t_1e178af7);
+ *  optional explore metadata: explore_flag (boolean) +
  *  propensity ({score: finite number, why?: string}) — malformed explore
  *  metadata invalidates the item (parsed, never trusted). has_reader is an
  *  optional boolean (in-paper reader availability, card t_f06c164b);
@@ -159,7 +168,7 @@ export function parseEditionItem(raw: unknown): EditionItem | null {
     if (typeof raw[key] !== "string") return null;
   }
   if (typeof raw.tier !== "string" || !TIERS.includes(raw.tier as Tier)) return null;
-  for (const key of ["brief", "captured_at"]) {
+  for (const key of ["brief", "captured_at", "skim_summary"]) {
     if (raw[key] !== undefined && typeof raw[key] !== "string") return null;
   }
   if (raw.explore_flag !== undefined && typeof raw.explore_flag !== "boolean") return null;

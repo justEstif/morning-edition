@@ -8,6 +8,7 @@ import {
   preReadWords,
   readingMinutes,
   validPreReadText,
+  withPreReadEntry,
 } from "./preread.js";
 
 const okText =
@@ -132,5 +133,41 @@ describe("parsePreReads", () => {
       prereads: { a: { text: okText }, b: { text: null } },
     };
     expect(parsePreReads(corrupt)).toBeNull();
+  });
+});
+
+describe("withPreReadEntry", () => {
+  const entry = { text: okText, model: "glm-5.3-flash", generated_at: "2026-10-26T20:00:00Z" };
+
+  it("keeps the edition date on the written file — a dateless file would never cache", () => {
+    // regression: the lazy tier once wrote `edition_date: undefined`, which
+    // JSON.stringify drops — parsePreReads then rejected the file forever and
+    // every request re-generated (live incident, 2026-10-26)
+    const merged = withPreReadEntry(null, "2026-10-26", "miniflux-1243", entry);
+    expect(merged.edition_date).toBe("2026-10-26");
+    // and what it writes must round-trip through the reader
+    expect(parsePreReads(merged)).not.toBeNull();
+  });
+
+  it("merges into the current file, preserving sibling entries", () => {
+    const merged = withPreReadEntry(parsePreReads(valid), "2026-10-26", "miniflux-1243", entry);
+    expect(Object.keys(merged.prereads).sort()).toEqual([
+      "miniflux-1239",
+      "miniflux-1241",
+      "miniflux-1243",
+    ]);
+  });
+
+  it("replaces (not appends to) a file from a previous edition day", () => {
+    const merged = withPreReadEntry(parsePreReads(valid), "2026-10-27", "miniflux-1243", entry);
+    expect(merged.edition_date).toBe("2026-10-27");
+    expect(Object.keys(merged.prereads)).toEqual(["miniflux-1243"]);
+  });
+
+  it("overwrites the same item's entry (regeneration wins)", () => {
+    const fresh = { ...entry, generated_at: "2026-10-26T21:00:00Z" };
+    const merged = withPreReadEntry(parsePreReads(valid), "2026-10-26", "miniflux-1239", fresh);
+    expect(merged.prereads["miniflux-1239"].generated_at).toBe("2026-10-26T21:00:00Z");
+    expect(Object.keys(merged.prereads)).toHaveLength(2);
   });
 });
