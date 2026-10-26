@@ -13,6 +13,8 @@
     "format:check": "oxfmt --check .",
     "start": "node build",
     "test": "vitest run",
+    "verify:demo": "tsx builder/verify_demo.ts",
+    "make:demo": "tsx scripts/make-demo-data.ts",
     "import-votes": "node scripts/import-votes.mjs"
   },
   "devDependencies": {
@@ -25,6 +27,7 @@
     "oxlint": "^1.89.0",
     "svelte": "^5.25.0",
     "svelte-check": "^4.7.7",
+    "tsx": "^4.19.0",
     "typescript": "^5.9.3",
     "vite": "^6.2.0",
     "vitest": "^5.0.5"

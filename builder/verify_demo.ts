@@ -169,6 +169,39 @@ const shortBriefs = data.items
   .map((i: { id: string }) => i.id);
 check("briefs multi-sentence", shortBriefs.length === 0, JSON.stringify(shortBriefs));
 
+// --- Demo fixture quality (t_4ed6f909): the SERVED demo (data/demo/edition.json
+// — the app's demo mode) must survive a 10-second scroll on camera: no
+// dedupe-test "— variant N" title artifacts, no repeated placeholder briefs,
+// and a full mock article behind every in-paper /read link (has_reader).
+const served = JSON.parse(readFileSync(join(REPO, "data", "demo", "edition.json"), "utf-8"));
+const servedBriefs: string[] = served.items.map((i: { brief?: string }) => i.brief ?? "");
+check(
+  "demo: no variant-N titles",
+  served.items.every((i: { title: string }) => !/variant \d/i.test(i.title)),
+);
+check(
+  "demo: brief on every item",
+  servedBriefs.every((b: string) => b.length >= 100),
+);
+check("demo: briefs all distinct", new Set(servedBriefs).size === servedBriefs.length);
+check(
+  "demo: no placeholder brief tell",
+  servedBriefs.every((b: string) => !b.includes("stands on its own")),
+);
+check(
+  "demo: has_reader on every item",
+  served.items.every((i: { has_reader?: boolean }) => i.has_reader === true),
+);
+const arts = JSON.parse(readFileSync(join(REPO, "data", "demo", "reader-articles.json"), "utf-8"));
+check(
+  "demo: reader covers every item",
+  arts.edition_date === served.edition_date &&
+    served.items.every(
+      (i: { id: string; url: string }) =>
+        arts.articles[i.id]?.url === i.url && arts.articles[i.id].text.length > 1000,
+    ),
+);
+
 // --- Card 2: feedback UI (inline votes + grade page) -------------------------
 const grade = readFileSync(join(REPO, "docs", "grade.html"), "utf-8");
 const fbJs = readFileSync(join(REPO, "docs", "assets", "feedback.js"), "utf-8");

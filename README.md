@@ -23,13 +23,24 @@ are new adapters; the domain doesn't change.
 
 ## Layout
 
-- `builder/` — Python builder + demo verifier (`verify_demo.py`). The builder
-  is deterministic; it is the only writer of edition JSON. It still outputs
-  the static demo (`docs/`): `index.html`, `panel.html`, `grade.html`,
-  `assets/style.css`, `assets/feedback.js`.
-- `data/demo/edition-demo.json` — **demo/mock data only.** This repo is
-  public; the binding constraint is: demo data here, real data only on the
-  private dokku app's volume. Never commit a real edition or any credential.
+- `builder/` — TypeScript builder + demo verifier (`verify_demo.ts`). The
+  builder is deterministic; it is the only writer of edition JSON. It still
+  outputs the static demo (`docs/`): `index.html`, `panel.html`,
+  `grade.html`, `assets/style.css`, `assets/feedback.js`.
+- `data/demo/` — **demo/mock data only.** This repo is public; the binding
+  constraint is: demo data here, real data only on the private dokku app's
+  volume. Never commit a real edition or any credential. `edition.json` +
+  `reader-articles.json` are GENERATED (and committed) by
+  `scripts/make-demo-data.ts`; `edition-demo.json` is the small
+  canonical-shape example.
+- `scripts/make-demo-data.ts` — the ONE demo-data entry point: deterministic,
+  seeded, mock-only; regenerates `data/demo/edition.json` +
+  `reader-articles.json` (varied realistic titles — never the old
+  "— variant N" fixture artifacts — per-item briefs, full mock reader
+  articles, `has_reader` set). Re-runs are byte-identical.
+- `RUNBOOK.md` — filming/sharing the demo: serving demo mode, the demo login
+  env (`ORIGIN` or the login POST 403s), the CDP-frames capture recipe, and
+  the rule: never film the real edition.
 - `docs/` — the old static Pages demo, kept for reference (localStorage-only
   feedback, marked "demo edition"). **GitHub Pages is retired** (disabled
   2026-10-24); the site now lives on dokku (below).
@@ -212,7 +223,7 @@ Docker (what dokku builds): pinned `node:22-bookworm-slim`, `npm ci`,
 Static demo rebuild (unchanged, deterministic):
 
 ```sh
-python3 builder/build_edition.py data/demo/edition-demo.json docs/
+npx tsx builder/build_edition.ts data/demo/edition-demo.json docs/
 ```
 
 ## Private dokku deploy (contabo)
@@ -288,7 +299,7 @@ regression must not recur undetected.
 
 ## Demo verifier / CI
 
-`python3 builder/verify_demo.py` — acceptance checks over the committed demo
+`npx tsx builder/verify_demo.ts` — acceptance checks over the committed demo
 edition (CI runs it, rebuilds `docs/`, and fails if `docs/` is stale). CI also
 builds the SvelteKit app (`npm ci && npm run build`) so the node side cannot
 silently rot.
