@@ -209,10 +209,13 @@
 					     between the columns, ragged right, no drop caps. The
 					     typographic folds live here — a jumpline is only honest when
 					     a story really continues across a break, so none are faked:
-					     the fold IS the continuation (research amendment #3). -->
-					<div class="briefs">
+					     the fold IS the continuation (research amendment #3).
+					     The well's brief count rides the class (n1/n2, capped at 3)
+					     so a sparse well narrows instead of painting a dead band
+					     across the page (t_4c629db1). -->
+					<div class="briefs n{Math.min(section.briefs.length, 3)}">
 						<div class="briefs-cap">‡ Briefs <span class="briefs-count">{section.briefs.length}</span></div>
-						<div class="briefs-cols">
+						<div class="briefs-cols n{Math.min(section.briefs.length, 3)}">
 							{#each section.briefs as item, i (item.id)}
 								{@const m = markFor(item)}
 								{@const pos = 2 + section.secondary.length + i}
