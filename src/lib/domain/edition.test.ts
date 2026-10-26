@@ -55,6 +55,18 @@ describe("parseEditionItem", () => {
     expect(item!.tier).toBe("brief");
   });
 
+  it("accepts original_title (feed-title provenance, t_21c0c195) and rejects a non-string", () => {
+    const withProvenance = parseEditionItem({
+      ...VALID.items[0],
+      original_title: "Raw feed title",
+    });
+    expect(withProvenance).not.toBeNull();
+    expect(withProvenance!.original_title).toBe("Raw feed title");
+    expect(parseEditionItem({ ...VALID.items[0], original_title: 42 })).toBeNull();
+    // absence stays valid — the schema change is additive
+    expect(parseEditionItem(VALID.items[0])).not.toBeNull();
+  });
+
   it("rejects non-objects and missing/non-string required fields", () => {
     expect(parseEditionItem(null)).toBeNull();
     expect(parseEditionItem("x")).toBeNull();

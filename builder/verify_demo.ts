@@ -9,6 +9,7 @@ import { readFileSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "./build_edition.js";
+import { inspectFeedTitle } from "../src/lib/domain/headlines.js";
 
 const REPO = dirname(dirname(fileURLToPath(import.meta.url)));
 
@@ -191,6 +192,32 @@ check(
 check(
   "demo: has_reader on every item",
   served.items.every((i: { has_reader?: boolean }) => i.has_reader === true),
+);
+// Card t_21c0c195: every item carries the feed title as provenance; wherever
+// it differs from the displayed headline the original is one of the broken
+// shapes the editorial pass exists to fix, and the display side is clean.
+check(
+  "demo: original_title on every item",
+  served.items.every(
+    (i: { original_title?: string }) =>
+      typeof i.original_title === "string" && i.original_title.trim().length > 0,
+  ),
+);
+const demoRewritten = served.items.filter(
+  (i: { title: string; original_title?: string }) => i.title !== i.original_title,
+);
+check(
+  "demo: at least one editorial rewrite example (provenance differs from display)",
+  demoRewritten.length >= 1,
+  demoRewritten.map((i: { id: string }) => i.id).join(","),
+);
+check(
+  "demo: rewritten originals are the broken shapes, display titles are clean",
+  demoRewritten.every((i: { title: string; original_title?: string }) => {
+    const orig = inspectFeedTitle(i.original_title ?? "");
+    const display = inspectFeedTitle(i.title);
+    return orig.broken && !display.broken;
+  }),
 );
 const arts = JSON.parse(readFileSync(join(REPO, "data", "demo", "reader-articles.json"), "utf-8"));
 check(

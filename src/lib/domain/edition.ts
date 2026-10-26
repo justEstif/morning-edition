@@ -62,6 +62,13 @@ export interface EditionItem {
    *  marginalia register) and demotes the raw extract below the fold. Absent
    *  → full mode, unchanged. Set by the builder only; parsed, never trusted. */
   reader_mode?: "digest";
+  /** Editorial provenance (card t_21c0c195): the feed title as fetched, kept
+   *  beside the co-written headline the page displays. The fallback source
+   *  for owner-mode revert (v2, t_e86490c0) and the anchor of the per-edition
+   *  rewrite audit log (headline-rewrites.json). Present on every item the
+   *  pipeline builds; parse rejects a non-string, never its absence (older
+   *  editions stay valid — the change is additive, ids stable). */
+  original_title?: string;
 }
 
 /** Raw edition JSON written by the builder. */
@@ -138,7 +145,7 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
  *  Required string fields: id, title, url, source, section, kind, tier
  *  (tier must be one of TIERS — absent or unknown tiers invalidate the
  *  item, the builder is the only writer); optional string fields: brief,
- *  captured_at; optional explore metadata: explore_flag (boolean) +
+ *  captured_at, original_title (feed-title provenance, card t_21c0c195); optional explore metadata: explore_flag (boolean) +
  *  propensity ({score: finite number, why?: string}) — malformed explore
  *  metadata invalidates the item (parsed, never trusted). has_reader is an
  *  optional boolean (in-paper reader availability, card t_f06c164b);
@@ -158,6 +165,7 @@ export function parseEditionItem(raw: unknown): EditionItem | null {
   if (raw.explore_flag !== undefined && typeof raw.explore_flag !== "boolean") return null;
   if (raw.has_reader !== undefined && typeof raw.has_reader !== "boolean") return null;
   if (raw.reader_mode !== undefined && raw.reader_mode !== "digest") return null;
+  if (raw.original_title !== undefined && typeof raw.original_title !== "string") return null;
   if (raw.propensity !== undefined && raw.propensity !== null) {
     if (!isPlainObject(raw.propensity)) return null;
     if (typeof raw.propensity.score !== "number" || !Number.isFinite(raw.propensity.score))

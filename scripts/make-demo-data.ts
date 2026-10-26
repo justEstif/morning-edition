@@ -5,7 +5,11 @@
                                      realistic titles (NEVER "— variant N"
                                      fixture artifacts), per-item briefs
                                      (self-contained, no teaser phrasing),
-                                     has_reader set on every item
+                                     has_reader set on every item,
+                                     original_title provenance on every item
+                                     (a few deliberately broken feed titles
+                                     demonstrate the editorial rewrite,
+                                     t_21c0c195)
      data/demo/reader-articles.json  full mock article text for ALL items so
                                      every /read/<id> page has real prose
 
@@ -71,6 +75,12 @@ interface DemoEntry {
   source: "readeck" | "miniflux" | "hn";
   slug: string;
   title: string;
+  /** Card t_21c0c195: the feed title as "fetched" — when it differs from
+   *  `title` it is deliberately one of the broken shapes the editorial pass
+   *  rewrites (raw URL, ALL-CAPS, site prefix, sprawl), so the demo exercises
+   *  the provenance/fallback story. Absent = the feed title was already
+   *  clean and equals the displayed headline. */
+  originalTitle?: string;
   brief: string;
   subj: string;
   crafted?: string; // full bespoke article text (leads get these)
@@ -106,6 +116,7 @@ What changed in the last year is less mechanical and more cultural: the async Ru
     source: "readeck",
     slug: "own-email-2026",
     title: "Why I Still Run My Own Email in 2026",
+    originalTitle: "The Register: Why I Still Run My Own Email in 2026",
     brief:
       "A thirteen-year personal mail server survives on three habits: plain formats, conservative upgrades, and refusing every managed feature that cannot be exported. The running cost is now under a day of maintenance a year, which the author argues is the true price of owning an address.",
     subj: "a long-running personal mail server",
@@ -126,6 +137,7 @@ What changed in the last year is less mechanical and more cultural: the async Ru
     source: "readeck",
     slug: "field-guide-any-codebase",
     title: "A Field Guide to Understanding Any Codebase in a Week",
+    originalTitle: "https://example.com/field-guide-any-codebase",
     brief:
       "Find the data, trace one write path end to end, and only then read the tests. The guide insists a week is enough for any codebase under a million lines, provided you resist fixing things while you read.",
     subj: "a method for reading unfamiliar code",
@@ -136,6 +148,7 @@ What changed in the last year is less mechanical and more cultural: the async Ru
     source: "miniflux",
     slug: "boring-tech-mars-helicopter",
     title: "The Boring Technology Behind the Mars Helicopter",
+    originalTitle: "THE BORING TECHNOLOGY BEHIND THE MARS HELICOPTER",
     brief:
       "Ingenuity flew on a Linux box running an unpatched kernel, and the mission succeeded precisely because every component was chosen for flight heritage over capability. The lesson generalizes: exotic parts fail in ways nobody rehearsed.",
     subj: "the flight software of the Ingenuity helicopter",
@@ -323,6 +336,7 @@ The open question is how far the constraint stretches. Networking, extended attr
     source: "hn",
     slug: "io-uring-in-production",
     title: "io_uring Beyond the Benchmarks: Where It Breaks in Production",
+    originalTitle: "Hacker News: io_uring Beyond the Benchmarks",
     brief:
       "io_uring benchmarks always shine, but production traffic mixes file types and failure modes the benchmarks skip. This inventory of where it breaks — buffered reads on network mounts, registered files going stale — is the checklist the fast path deserves.",
     subj: "io_uring failure modes under real workloads",
@@ -867,6 +881,9 @@ function toItem(entry: DemoEntry, sectionIndex: number): Omit<EditionItem, "tier
     // are always kind=captured
     kind: entry.section === "captured" ? "captured" : sectionIndex === 0 ? "deep-read" : "brief",
     title: entry.title,
+    // card t_21c0c195 provenance: the feed title rides beside the displayed
+    // headline (identical when the feed title was already clean)
+    original_title: entry.originalTitle ?? entry.title,
     url: `https://example.com/${entry.slug}`,
     source: entry.source,
     brief: entry.brief,
