@@ -56,6 +56,14 @@ describe("validateCorrection — valid v2 events pass", () => {
     expect((ev as { supersedes?: string }).supersedes).toBe("e-prev");
   });
 
+  it("accepts the skip / not-interested verdict with a reason chip (t_1e178af7)", () => {
+    const ev = validateCorrection({ ...VERDICT_BODY, value: "skip", reason: "wrong-source" }, deps);
+    expect(ev).toMatchObject({ type: "verdict", value: "skip", reason: "wrong-source" });
+    // a bare skip (no reason) is valid too — the chips stay optional
+    const bare = validateCorrection({ ...VERDICT_BODY, value: "skip" }, deps);
+    expect(bare).toMatchObject({ type: "verdict", value: "skip" });
+  });
+
   it("accepts a click with url", () => {
     const ev = validateCorrection(
       {
@@ -389,6 +397,28 @@ describe("summarizeCorrections — latest event per item wins", () => {
     expect(summarizeCorrections([v1, other], "2026-10-25")).toEqual({
       count: 1,
       last: { "readeck-1": { verdict: "deep-read", reason: "wrong-angle", ev: "e-1" } },
+    });
+  });
+
+  it("surfaces a skip verdict in the item's slot (t_1e178af7)", () => {
+    const skip: LedgerEvent = {
+      id: "e-skip1",
+      ts: "2026-10-25T13:00:00.000Z",
+      schema_v: 2,
+      session_id: "sess-abc",
+      item_id: "readeck-1",
+      item_url: "https://example.com/1",
+      source: "readeck",
+      edition_date: "2026-10-25",
+      type: "verdict",
+      value: "skip",
+      reason: "wrong-source",
+    };
+    const sum = summarizeCorrections([v1, skip]);
+    expect(sum.last["readeck-1"]).toEqual({
+      verdict: "skip",
+      reason: "wrong-source",
+      ev: "e-skip1",
     });
   });
 

@@ -44,6 +44,7 @@ describe("signalValue (raw, before burst × decay)", () => {
     expect(signalValue(ev({ type: "verdict", value: "deep-read" }))).toBe(1.0);
     expect(signalValue(ev({ type: "verdict", value: "skim" }))).toBe(-0.4);
     expect(signalValue(ev({ type: "verdict", value: "drop" }))).toBe(-0.7);
+    expect(signalValue(ev({ type: "verdict", value: "skip" }))).toBe(-1.0); // strongest explicit negative, t_1e178af7
     expect(signalValue(ev({ type: "grade", value: "capture" }))).toBe(0.6); // legacy v1
     expect(signalValue(ev({ type: "vote", value: "up" }))).toBe(0.5);
     expect(signalValue(ev({ type: "vote", value: "down" }))).toBe(-0.7);
@@ -337,6 +338,37 @@ describe("promotion-gate tracker (hand-counted synthetic ledger)", () => {
   it("matches canonical URLs insensitively for the negative-flag join", () => {
     expect(suggestVerdict([], true)).toBe("drop");
     expect(suggestVerdict([], false)).toBe(null);
+  });
+
+  it("a skip verdict counts in the drop bucket of the gate (t_1e178af7)", () => {
+    // zero engagement + registry negative → suggest drop; verdict skip → AGREE
+    const stats = computeGateStats(
+      baseInputs({
+        events: [
+          ev({ ts: "2026-10-25T11:00:00Z", type: "verdict", value: "skip", item_id: "m-3" }),
+        ],
+        items: gateItems,
+        negativeStories: [
+          { canonical_url: "https://A.example/3", sources: ["miniflux"], last_seen: "2026-10-25" },
+        ],
+        registryStories: 6,
+      }),
+    );
+    expect(stats.verdicts_in_window).toBe(1);
+    expect(stats.suggestable).toBe(1);
+    expect(stats.agreements).toBe(1);
+    // and a skip disagrees with an engagement-derived skim/deep-read suggestion
+    const disagree = computeGateStats(
+      baseInputs({
+        events: [
+          ev({ ts: "2026-10-25T10:00:00Z", type: "click", item_id: "m-1" }),
+          ev({ ts: "2026-10-25T11:00:00Z", type: "verdict", value: "skip", item_id: "m-1" }),
+        ],
+        items: gateItems,
+      }),
+    );
+    expect(disagree.suggestable).toBe(1);
+    expect(disagree.agreements).toBe(0);
   });
 
   it("a suggestion needs non-verdict engagement evidence", () => {

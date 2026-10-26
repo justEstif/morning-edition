@@ -67,6 +67,18 @@ describe("parseEditionItem", () => {
     expect(parseEditionItem(VALID.items[0])).not.toBeNull();
   });
 
+  it("accepts skim_summary (AI skim merge, t_1e178af7) and rejects a non-string", () => {
+    const withSummary = parseEditionItem({
+      ...VALID.items[0],
+      skim_summary: "- bullet one\n- bullet two",
+    });
+    expect(withSummary).not.toBeNull();
+    expect(withSummary!.skim_summary).toBe("- bullet one\n- bullet two");
+    expect(parseEditionItem({ ...VALID.items[0], skim_summary: 7 })).toBeNull();
+    // absence stays valid — most items were never skimmed
+    expect(parseEditionItem(VALID.items[0])).not.toBeNull();
+  });
+
   it("rejects non-objects and missing/non-string required fields", () => {
     expect(parseEditionItem(null)).toBeNull();
     expect(parseEditionItem("x")).toBeNull();
