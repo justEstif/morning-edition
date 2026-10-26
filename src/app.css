@@ -14,7 +14,9 @@
    - drop caps rationed to ≤3 per page (.dc): page lead + first two section
      leads only, never on secondary/briefs.
    - brief micro-typography: 12.5px floor, line-height ≥1.45, +0.01em
-     tracking, hairline rule above each brief, ragged right + column rule.
+     tracking, ragged right. (t_95621dc5 stripped the decorative rules:
+     whitespace carries separation now — only the nameplate + colophon
+     double rules and the wire-note dash survive.)
    - near-black on near-white (newsprint was matte, not #000-on-#fff). */
 :root {
   --ink: #141414;
@@ -107,8 +109,7 @@ a:hover {
   font-family: var(--sc);
   font-size: 11px;
   letter-spacing: 2px;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--rule);
+  padding: 8px 0 16px;
 }
 .rail .fl {
   color: var(--rule);
@@ -128,8 +129,7 @@ a:hover {
   flex-wrap: wrap;
   align-items: baseline;
   gap: 2px 14px;
-  padding: 9px 0 10px;
-  border-bottom: 1px solid var(--rule);
+  padding: 9px 0 20px;
   font-family: var(--sc);
   font-size: 12.5px;
 }
@@ -161,20 +161,17 @@ a:hover {
   display: grid;
   grid-template-columns: subgrid;
   gap: 0 32px;
-  padding: 20px 0 22px;
-  border-bottom: 1px solid var(--rule);
+  padding: 20px 0 34px;
 }
 .lead-main {
   grid-column: 1 / span 7;
 }
 .lead-side1 {
   grid-column: 8 / span 2;
-  border-left: 1px solid var(--rule);
   padding-left: 24px;
 }
 .lead-side2 {
   grid-column: 10 / span 3;
-  border-left: 1px solid var(--rule);
   padding-left: 24px;
 }
 .lead .cap {
@@ -237,10 +234,8 @@ section h2.col-h {
   font-size: 20px;
   word-spacing: 4px;
   text-align: left;
-  margin: 30px 0 0;
-  padding: 12px 0 8px;
-  border-top: 2px solid var(--ink);
-  border-bottom: 1px solid var(--rule);
+  margin: 44px 0 0;
+  padding: 4px 0 8px;
   display: flex;
   justify-content: space-between;
   align-items: baseline;
@@ -256,8 +251,7 @@ section h2.col-h small {
   display: grid;
   grid-template-columns: repeat(12, 1fr);
   column-gap: 32px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--rule);
+  padding-bottom: 30px;
 }
 .item {
   padding: 16px 28px 14px 0;
@@ -313,13 +307,11 @@ section h2.col-h small {
 }
 .t0 .tier-secondary {
   grid-column: 8 / 13;
-  border-left: 1px solid var(--rule);
   padding-left: 28px;
 }
 .t0 .briefs {
   grid-column: 1 / 13;
-  margin-top: 6px;
-  border-top: 1px solid var(--rule);
+  margin-top: 16px;
 }
 
 /* t1 — wide lead + anchored briefs rail: briefs get their fixed home on the
@@ -330,7 +322,6 @@ section h2.col-h small {
 .t1 .sec0 {
   grid-column: 9 / 13;
   grid-row: 1 / span 2;
-  border-left: 1px solid var(--rule);
   padding-left: 28px;
 }
 .t1 .sec1 {
@@ -339,13 +330,11 @@ section h2.col-h small {
 }
 .t1 .sec2 {
   grid-column: 5 / 9;
-  border-left: 1px solid var(--rule);
   padding-left: 28px;
   margin-top: 4px;
 }
 .t1 .briefs {
   grid-column: 9 / 13;
-  border-left: 1px solid var(--rule);
   padding-left: 28px;
 }
 .t1 .briefs-cols {
@@ -359,24 +348,20 @@ section h2.col-h small {
 }
 .t2 .sec0 {
   grid-column: 6 / 10;
-  border-left: 1px solid var(--rule);
   padding-left: 28px;
 }
 .t2 .sec1 {
   grid-column: 10 / 13;
-  border-left: 1px solid var(--rule);
   padding-left: 28px;
 }
 .t2 .sec2 {
   grid-column: 6 / 13;
-  border-left: 1px solid var(--rule);
   padding-left: 28px;
   margin-top: 4px;
 }
 .t2 .briefs {
   grid-column: 1 / 13;
-  margin-top: 6px;
-  border-top: 1px solid var(--rule);
+  margin-top: 16px;
 }
 
 /* no-lead variants: a section whose display story was promoted out of it
@@ -388,7 +373,6 @@ section h2.col-h small {
 .t0.no-lead .sec1,
 .t0.no-lead .sec3 {
   grid-column: 7 / 13;
-  border-left: 1px solid var(--rule);
   padding-left: 28px;
 }
 .t1.no-lead .sec0 {
@@ -403,16 +387,11 @@ section h2.col-h small {
 }
 .t2.no-lead .sec1 {
   grid-column: 7 / 13;
-  border-left: 1px solid var(--rule);
   padding-left: 28px;
 }
-.t2.no-lead .sec2 {
-  border-left: 0;
-  padding-left: 0;
-}
 
-/* the briefs well: agate density — hairline above each brief, column rules
-   between columns, ragged right, folds carry the substance */
+/* the briefs well: agate density — whitespace between briefs and columns,
+   ragged right, folds carry the substance */
 .briefs {
   padding: 10px 0 6px;
 }
@@ -433,12 +412,10 @@ section h2.col-h small {
 .briefs-cols {
   columns: 3;
   column-gap: 28px;
-  column-rule: 1px solid var(--rule);
 }
 .brief {
   break-inside: avoid;
-  border-top: 1px solid var(--rule);
-  padding: 7px 0 9px;
+  padding: 9px 0 11px;
 }
 .brief .brief-h {
   font-family: var(--sc);
@@ -557,9 +534,8 @@ footer {
   align-items: baseline;
   gap: 12px;
   flex-wrap: wrap;
-  border-top: 1px solid var(--rule);
-  margin-top: 30px;
-  padding-top: 9px;
+  margin-top: 36px;
+  padding-top: 4px;
   font-family: var(--sc);
   font-size: 11px;
   letter-spacing: 2px;
@@ -583,8 +559,7 @@ footer {
   align-items: baseline;
   gap: 18px;
   flex-wrap: wrap;
-  padding: 13px 4px;
-  border-bottom: 1px solid var(--rule);
+  padding: 17px 4px;
 }
 .grade-row .g-body {
   flex: 1;
@@ -870,7 +845,6 @@ details.fold > .fold-body {
   }
   .lead-side1,
   .lead-side2 {
-    border-left: 0;
     padding-left: 0;
     margin-top: 14px;
   }
@@ -879,17 +853,11 @@ details.fold > .fold-body {
   }
   .item,
   .briefs {
-    border-left: 0;
     padding: 14px 0 4px;
   }
-  .t0 .briefs,
-  .t2 .briefs {
-    border-top: 0;
-    margin-top: 0;
-  }
   .tier-secondary {
-    border-top: 1px dotted var(--rule);
     padding-left: 0 !important;
+    padding-top: 12px;
   }
   .briefs-cols {
     columns: 2;
@@ -923,8 +891,6 @@ details.fold > .fold-body {
   font-size: 11px;
   letter-spacing: 2px;
   color: var(--mid);
-  border-bottom: 1px solid var(--rule);
-  padding-bottom: 8px;
 }
 .reader-main .kicker b {
   font-weight: 400;
@@ -946,9 +912,7 @@ details.fold > .fold-body {
   font-size: 56px;
 }
 .end-furniture {
-  border-top: 1px solid var(--rule);
-  margin-top: 30px;
-  padding-top: 10px;
+  margin-top: 40px;
   font-family: var(--sc);
   font-size: 11px;
   letter-spacing: 2px;
@@ -959,7 +923,6 @@ details.fold > .fold-body {
   padding: 0 6px;
 }
 .reader-margin {
-  border-left: 1px solid var(--rule);
   padding-left: 28px;
   font-size: 13px;
   align-self: start;
@@ -973,9 +936,8 @@ details.fold > .fold-body {
   margin-bottom: 6px;
 }
 .paper-note {
-  border-bottom: 1px solid var(--rule);
-  padding-bottom: 14px;
-  margin-bottom: 14px;
+  padding-bottom: 2px;
+  margin-bottom: 20px;
 }
 .paper-note p {
   margin: 0;
@@ -1001,8 +963,7 @@ details.fold > .fold-body {
 .verdict-card {
   position: sticky;
   top: 18px;
-  border: 1px solid var(--ink);
-  padding: 12px 14px;
+  padding: 2px 0;
   font-family: var(--sc);
   font-size: 11px;
   letter-spacing: 2px;
@@ -1035,8 +996,7 @@ details.fold > .fold-body {
   margin-top: 34px;
 }
 .more-section .more-item {
-  border-top: 1px dotted var(--rule);
-  padding: 8px 0;
+  padding: 10px 0;
   margin: 0;
   font-size: 14.5px;
   line-height: 1.45;
@@ -1045,15 +1005,13 @@ details.fold > .fold-body {
   color: var(--ink);
 }
 
-/* Margin drops under the text below 900px; border flips to the top.
+/* Margin drops under the text below 900px.
    The verdict card rides along (static) — grading stays one flick away. */
 @media (max-width: 900px) {
   .reader-grid {
     grid-template-columns: minmax(0, 68ch);
   }
   .reader-margin {
-    border-left: 0;
-    border-top: 1px solid var(--rule);
     padding-left: 0;
     padding-top: 16px;
     margin-top: 24px;
@@ -1179,8 +1137,6 @@ details.fold > .fold-body {
     display: block;
   }
   .reader-margin {
-    border-left: 0;
-    border-top: 1px solid var(--rule);
     padding-left: 0;
     padding-top: 12px;
     margin-top: 20px;
