@@ -11,6 +11,7 @@ import type { HighlightRow, LedgerEvent, RejectionRecord, VerdictEvent } from ".
 import type { ExploreCandidate, ExplorePick } from "./explore.js";
 import type { PoolCandidate } from "./pool.js";
 import type { ReaderArticles } from "./reader.js";
+import type { PreReads } from "./preread.js";
 
 export type { RejectionRecord };
 
@@ -80,6 +81,15 @@ export interface ReaderSource {
   load(): Promise<ReaderArticles | null>;
 }
 
+/** Pre-reads for the depth ladder (prereads.json on the volume, card
+ *  t_2f96c207) — the ~800-word LLM tier between brief and full text on
+ *  /read/<id>. Written by the pipeline (batch, lead+secondary) AND by the
+ *  server (lazy, briefs tier — the adapter appends to the same file). Null
+ *  when absent/corrupt: the page renders without the tier, unchanged. */
+export interface PrereadSource {
+  load(): Promise<PreReads | null>;
+}
+
 /** Aggregate of the ports the routes need, as the composition root provides
  *  them (keeps route files to a single adapter import). */
 export interface AppPorts {
@@ -88,4 +98,5 @@ export interface AppPorts {
   corrections: CorrectionSink;
   pool: PoolStore;
   reader: ReaderSource;
+  prereads: PrereadSource;
 }

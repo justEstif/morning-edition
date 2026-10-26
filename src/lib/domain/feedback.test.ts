@@ -68,6 +68,31 @@ describe("validateCorrection — valid v2 events pass", () => {
     );
     expect(ev).toMatchObject({ type: "click", url: "https://example.com/1", schema_v: 2 });
   });
+
+  it("accepts an escalate (depth ladder, t_2f96c207) — envelope-only, additive", () => {
+    const ev = validateCorrection(
+      {
+        type: "escalate",
+        session_id: "s",
+        item_id: "miniflux-1239",
+        item_url: "https://example.com/1",
+        source: "miniflux",
+        edition_date: "2026-10-25",
+      },
+      deps,
+    );
+    expect(ev).toEqual({
+      id: "e-testid0000",
+      ts: "2026-10-25T12:00:00.000Z",
+      schema_v: 2,
+      session_id: "s",
+      item_id: "miniflux-1239",
+      item_url: "https://example.com/1",
+      source: "miniflux",
+      edition_date: "2026-10-25",
+      type: "escalate",
+    });
+  });
 });
 
 describe("validateCorrection — malformed input fails", () => {
@@ -364,6 +389,22 @@ describe("summarizeCorrections — latest event per item wins", () => {
       count: 1,
       last: { "readeck-1": { verdict: "deep-read", reason: "wrong-angle", ev: "e-1" } },
     });
+  });
+
+  it("counts escalate rows but fills no verdict slot (additive kind, t_2f96c207)", () => {
+    const escalate: LedgerEvent = {
+      id: "e-esc",
+      ts: "2026-10-25T13:00:00.000Z",
+      schema_v: 2,
+      session_id: "s",
+      item_id: "miniflux-1239",
+      source: "miniflux",
+      edition_date: "2026-10-25",
+      type: "escalate",
+    };
+    const sum = summarizeCorrections([escalate]);
+    expect(sum.count).toBe(1);
+    expect(sum.last["miniflux-1239"]).toEqual({});
   });
 });
 
