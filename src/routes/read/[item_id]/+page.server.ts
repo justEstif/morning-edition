@@ -47,6 +47,11 @@ export const load: PageServerLoad = async ({ params, url, locals }) => {
     // markFor and the ledger envelopes read kind/section/id off it)
     item,
     text: article?.text ?? null,
+    // Reader quality gate (card t_b3782402): the builder's mode claim rides
+    // with the item; the page only honors it when the stored entry actually
+    // carries the digest (parsed, never trusted on both sides).
+    readerMode: item.reader_mode ?? null,
+    digest: article?.digest ?? null,
     more,
     isDemo: editions.isDemo,
     // Reading is public (t_43e48cd0); owner affordances — the verdict card,

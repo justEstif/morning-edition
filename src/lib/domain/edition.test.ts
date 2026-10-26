@@ -107,6 +107,18 @@ describe("parseEditionItem", () => {
     expect(parseEditionItem({ ...VALID.items[0], has_reader: "yes" })).toBeNull();
     expect(parseEditionItem(VALID.items[0])!.has_reader).toBeUndefined();
   });
+
+  it("accepts reader_mode:'digest' and keeps it (card t_b3782402)", () => {
+    const item = parseEditionItem({ ...VALID.items[0], reader_mode: "digest" });
+    expect(item).not.toBeNull();
+    expect(item!.reader_mode).toBe("digest");
+  });
+
+  it("rejects any reader_mode other than 'digest' and tolerates its absence (full mode)", () => {
+    expect(parseEditionItem({ ...VALID.items[0], reader_mode: "full" })).toBeNull();
+    expect(parseEditionItem({ ...VALID.items[0], reader_mode: 1 })).toBeNull();
+    expect(parseEditionItem(VALID.items[0])!.reader_mode).toBeUndefined();
+  });
 });
 
 describe("parseEdition", () => {

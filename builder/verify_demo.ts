@@ -198,9 +198,28 @@ check(
   arts.edition_date === served.edition_date &&
     served.items.every(
       (i: { id: string; url: string }) =>
-        arts.articles[i.id]?.url === i.url && arts.articles[i.id].text.length > 1000,
+        arts.articles[i.id]?.url === i.url &&
+        // full articles are substantial; the digest-mode example (card
+        // t_b3782402) is deliberately thin — its digest carries the page
+        (arts.articles[i.id].text.length > 1000 || !!arts.articles[i.id].digest),
     ),
 );
+// Card t_b3782402: the demo shows the digest-mode state ON PURPOSE — exactly
+// one digest item, its text genuinely thin, its digest present and shorter.
+const demoDigest = served.items.filter((i: { reader_mode?: string }) => i.reader_mode === "digest");
+check(
+  "demo: exactly one digest-mode example",
+  demoDigest.length === 1,
+  demoDigest.map((i: { id: string }) => i.id).join(","),
+);
+if (demoDigest.length === 1) {
+  const entry = arts.articles[demoDigest[0].id];
+  check(
+    "demo: digest example is thin text + shorter grounded digest",
+    !!entry?.digest && entry.digest.length < entry.text.length && entry.text.length < 1_500,
+    `${entry?.text.length} chars + digest ${entry?.digest.length}`,
+  );
+}
 
 // --- Card 2: feedback UI (inline votes + grade page) -------------------------
 const grade = readFileSync(join(REPO, "docs", "grade.html"), "utf-8");

@@ -38,6 +38,15 @@
 	}
 
 	const paragraphs = $derived((d.text ?? '').split(/\n{2,}/).map((p) => p.trim()).filter(Boolean));
+	/* Reader quality gate (card t_b3782402): digest mode requires BOTH the
+	   builder's claim (item.reader_mode) and the stored digest — either side
+	   missing falls back to the honest tiers below (full text or wire note).
+	   The digest is the main content, labeled in the marginalia; the raw
+	   extract demotes below the fold. Full mode renders byte-identically. */
+	const digestMode = $derived(d.readerMode === 'digest' && !!d.digest);
+	const digestParagraphs = $derived(
+		(d.digest ?? '').split(/\n{2,}/).map((p) => p.trim()).filter(Boolean)
+	);
 	/* The cap opens the PROSE, not boilerplate — extracted text often starts
 	   with a dateline or scraped fragment ("30 Apr, 2026"), and a two-inch
 	   "3" atop that is comedy, not typography. First paragraph with real
@@ -183,7 +192,26 @@
 			<!-- Extension point (depth ladder, t_2f96c207): a pre-read tier slots
 			     HERE, between headline and body — the grid below is unaffected. -->
 
-			{#if d.text}
+			{#if digestMode}
+				<!-- Reader quality gate (card t_b3782402): the source gave little,
+				     so the paper's digest is the story — labeled in the margin,
+				     not styled as a full article. The raw extract sits below the
+				     fold (details), the honest provenance keeps the source door
+				     open. -->
+				<div class="digest-main">
+					{#each digestParagraphs as p, i (i)}
+						<p class={i === 0 ? 'digest-lede' : ''}>{p}</p>
+					{/each}
+				</div>
+				<details class="digest-raw">
+					<summary>The raw extract, as scraped</summary>
+					<div class="reader-body digest-raw-body">
+						{#each paragraphs as p, i (i)}
+							<p>{p}</p>
+						{/each}
+					</div>
+				</details>
+			{:else if d.text}
 				<div class="reader-body">
 					{#each paragraphs as p, i (i)}
 						<p class={i === dropIdx ? 'dc' : ''}>{p}</p>
@@ -211,6 +239,14 @@
 		</article>
 
 		<aside class="reader-margin">
+			{#if digestMode}
+				<!-- The gate's marginalia label (card t_b3782402), in the house
+				     register: honest about how much the source gave. -->
+				<div class="paper-note digest-note">
+					<div class="cap">A short one</div>
+					<p>a short one &mdash; the paper&rsquo;s digest. The source yielded only a fragment; it is condensed at left, and the raw scrap is set below the digest.</p>
+				</div>
+			{/if}
 			{#if d.item.brief}
 				<!-- The engine's voice, typographically fenced (spike decision #1):
 				     italic marginalia, never confusable with the author's text. -->
@@ -225,6 +261,10 @@
 				<div class="cap">Provenance</div>
 				<dl>
 					<dt>Source</dt><dd>via {d.item.source} · {host}</dd>
+					{#if digestMode}
+						<dt>At the source</dt>
+						<dd><a href={d.item.url} onclick={() => trackOutbound(d.item.url)}>{host} ↗</a></dd>
+					{/if}
 					<dt>Angle</dt><dd>{d.sectionTitle}</dd>
 					{#if d.item.captured_at}<dt>Captured</dt><dd>{d.item.captured_at.slice(0, 10)}</dd>{/if}
 					<dt>First showing</dt><dd>edition {d.editionDate}</dd>

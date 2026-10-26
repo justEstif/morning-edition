@@ -57,6 +57,11 @@ export interface EditionItem {
    *  point at /read/<id> instead of the external URL. Absent → external link
    *  (the pre-reader behavior; extraction failures fall back gracefully). */
   has_reader?: boolean;
+  /** Reader quality gate (card t_b3782402): "digest" when the extraction came
+   *  back THIN — the /read page leads with the paper's LLM digest (labeled,
+   *  marginalia register) and demotes the raw extract below the fold. Absent
+   *  → full mode, unchanged. Set by the builder only; parsed, never trusted. */
+  reader_mode?: "digest";
 }
 
 /** Raw edition JSON written by the builder. */
@@ -136,7 +141,9 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
  *  captured_at; optional explore metadata: explore_flag (boolean) +
  *  propensity ({score: finite number, why?: string}) — malformed explore
  *  metadata invalidates the item (parsed, never trusted). has_reader is an
- *  optional boolean (in-paper reader availability, card t_f06c164b). Unknown
+ *  optional boolean (in-paper reader availability, card t_f06c164b);
+ *  reader_mode is an optional string, "digest" being its only value (reader
+ *  quality gate, card t_b3782402). Unknown
  *  extra keys are tolerated — the builder may carry fields this app never
  *  renders. */
 export function parseEditionItem(raw: unknown): EditionItem | null {
@@ -150,6 +157,7 @@ export function parseEditionItem(raw: unknown): EditionItem | null {
   }
   if (raw.explore_flag !== undefined && typeof raw.explore_flag !== "boolean") return null;
   if (raw.has_reader !== undefined && typeof raw.has_reader !== "boolean") return null;
+  if (raw.reader_mode !== undefined && raw.reader_mode !== "digest") return null;
   if (raw.propensity !== undefined && raw.propensity !== null) {
     if (!isPlainObject(raw.propensity)) return null;
     if (typeof raw.propensity.score !== "number" || !Number.isFinite(raw.propensity.score))

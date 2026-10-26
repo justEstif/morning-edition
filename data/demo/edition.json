@@ -130,6 +130,7 @@
       "source": "readeck",
       "brief": "A one-person project to index pages with no surviving inbound links has catalogued four million documents that would otherwise vanish with their hosts. The hard part is deciding an orphan page is worthless, which requires exactly the judgment no crawler has.",
       "has_reader": true,
+      "reader_mode": "digest",
       "captured_at": "2026-10-25T18:10:00.000Z",
       "tier": "brief"
     },

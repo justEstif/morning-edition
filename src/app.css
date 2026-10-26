@@ -911,6 +911,49 @@ details.fold > .fold-body {
 .reader-body .dc::first-letter {
   font-size: 56px;
 }
+/* Digest mode (card t_b3782402): the paper's digest is the main content,
+   set slightly apart from a full article's body — quieter type, no drop cap,
+   the raw extract folded away beneath. Whitespace carries the hierarchy
+   (post-t_95621dc5 register: no new rules, just space and size). */
+.digest-main {
+  margin: 6px 0 26px;
+}
+.digest-main p {
+  font-size: 18px;
+  line-height: 1.66;
+  margin: 0 0 1em;
+}
+.digest-main .digest-lede {
+  font-size: 21px;
+  line-height: 1.55;
+}
+.digest-raw {
+  margin: 28px 0 0;
+}
+.digest-raw summary {
+  font-family: var(--sc);
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--mid);
+  cursor: pointer;
+  margin-bottom: 10px;
+}
+.digest-raw[open] summary {
+  margin-bottom: 14px;
+}
+.digest-raw-body {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--mid);
+}
+.digest-raw-body p {
+  font-size: 14px;
+  margin: 0 0 0.8em;
+}
+.digest-note {
+  font-style: italic;
+}
 .end-furniture {
   margin-top: 40px;
   font-family: var(--sc);
@@ -1052,6 +1095,9 @@ details.fold > .fold-body {
   .reader-body .dc::first-letter {
     font-size: 40px;
   }
+  .digest-main .digest-lede {
+    font-size: 18px;
+  }
   .verdict-card .grade-btn,
   .verdict-card .chip-btn {
     font-size: 12.5px;
@@ -1161,5 +1207,14 @@ details.fold > .fold-body {
   }
   details.fold > .fold-body {
     margin-top: 4px;
+  }
+  /* Digest mode prints the raw extract too (card t_b3782402) — the fold is
+     a screen affordance; on paper the scrap rides under the digest. */
+  .digest-raw > summary {
+    display: none !important;
+  }
+  .digest-raw::details-content {
+    display: block;
+    content-visibility: visible;
   }
 }

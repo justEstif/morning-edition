@@ -74,6 +74,10 @@ interface DemoEntry {
   brief: string;
   subj: string;
   crafted?: string; // full bespoke article text (leads get these)
+  /** Digest-mode example (card t_b3782402): when set, `crafted` must be the
+   *  THIN extraction (< READER_THIN_CHARS) that yielded it — the item ships
+   *  reader_mode:"digest" and the /read page leads with the digest. */
+  digest?: string;
 }
 
 const CAPTURED_AT_BASE = Date.parse("2026-10-24T15:20:00Z");
@@ -195,6 +199,13 @@ What changed in the last year is less mechanical and more cultural: the async Ru
     brief:
       "A one-person project to index pages with no surviving inbound links has catalogued four million documents that would otherwise vanish with their hosts. The hard part is deciding an orphan page is worthless, which requires exactly the judgment no crawler has.",
     subj: "an index of pages with no inbound links",
+    // THE digest-mode example (card t_b3782402): the source's extraction came
+    // back thin (~500 chars — a partial fetch), so the paper's digest is the
+    // story and the raw scrap sits below the fold on /read.
+    crafted: `The Orphan Pages Project began as a spreadsheet. Its maintainer, a former academic librarian who asks to be described only as a cataloguer, started saving URLs the week her library cancelled its link-rot audit, and the spreadsheet became a crawler, and the crawler became an index of four million pages that no other page links to.
+
+There is no funding and no team. There is a submission form, a monthly export, and a rule the cataloguer repeats in every interview: an orphan page is not a worthless page.`,
+    digest: `A former academic librarian runs a one-person index of roughly four million web pages that nothing else links to — orphan pages that would vanish when their hosts do. It started as a spreadsheet the week her library cancelled its link-rot audit and grew into a crawler with a submission form and a monthly export. The project has no funding and no team; its one stated rule is that an orphan page is not a worthless page.`,
   },
   {
     id: "readeck-Mw4qZnV8cJpLx3dTs6fRbK",
@@ -861,6 +872,9 @@ function toItem(entry: DemoEntry, sectionIndex: number): Omit<EditionItem, "tier
     brief: entry.brief,
     has_reader: true,
   };
+  // Reader quality gate (card t_b3782402): a digest example ships in digest
+  // mode — thin crafted text + digest on the reader entry.
+  if (entry.digest) item.reader_mode = "digest";
   if (entry.section === "captured") {
     // deterministic, varied capture times across Oct 24–25
     const minuteSpread = ((sectionIndex * 731) % 1900) * 60_000; // ~31h of spread
@@ -892,7 +906,14 @@ writeFileSync(
 const articles = Object.fromEntries(
   items.map((i) => {
     const entry = ALL_ENTRIES.find((e) => e.id === i.id)!;
-    return [i.id, { url: i.url, text: entry.crafted ?? mockBody(entry) }];
+    return [
+      i.id,
+      {
+        url: i.url,
+        text: entry.crafted ?? mockBody(entry),
+        ...(entry.digest ? { digest: entry.digest } : {}),
+      },
+    ];
   }),
 );
 writeFileSync(
