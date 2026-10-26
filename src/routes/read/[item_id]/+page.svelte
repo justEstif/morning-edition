@@ -7,6 +7,8 @@
 	// The dwell module settles any pending open (the front page's click) on
 	// load — the in-paper read itself becomes the dwell span, same session
 	// semantics as every other surface (card t_ea679b5a, unchanged shapes).
+	// For anonymous readers any settlement POST is refused by the session
+	// gate (owner-only /api) — an anonymous read writes nothing (t_43e48cd0).
 	import '$lib/dwell.js';
 	import type { PageData } from './$types.js';
 
@@ -17,9 +19,12 @@
 	/* Impressions flow from the reader too (additive, same event shape): the
 	   article element is the exposure, position 1 of its re-opened section.
 	   Dedupe is per item+session+edition in $lib/impressions.js, so a story
-	   already impressed on the front page never double-counts. NOTE: the
-	   telemetry field `tier` predates the broadsheet tier and still carries
-	   the item KIND — a payload contract, unchanged on purpose. */
+	   already impressed on the front page never double-counts. ANONYMOUS
+	   visitors (public read, t_43e48cd0): no exposure is attached at all —
+	   the action gets null and never tracks — so an anonymous read writes
+	   nothing to the owner's ranker signal. NOTE: the telemetry field `tier`
+	   predates the broadsheet tier and still carries the item KIND — a
+	   payload contract, unchanged on purpose. */
 	function impressionInfo() {
 		return {
 			item_id: d.item.id,
@@ -49,6 +54,9 @@
 	let verdictError = $state('');
 
 	$effect(() => {
+		// Anonymous readers carry no verdict state — the card isn't rendered
+		// below, and /api/corrections is owner-only anyway.
+		if (!d.isOwner) return;
 		// The desk's own reduction: existing verdicts for this edition, so the
 		// margin card shows what the ledger already holds (supersede, never
 		// contradict — the /grade semantics verbatim).
@@ -107,8 +115,11 @@
 
 	/* An outbound hop from the reader (wire-note link, "more in this section"
 	   external link) records the same click event the front page records —
-	   item ids unchanged, one open → one dwell, nothing new on the wire. */
+	   item ids unchanged, one open → one dwell, nothing new on the wire.
+	   Anonymous readers: the hop is just a hop — no click event, no dwell
+	   open from this surface (public read writes nothing, t_43e48cd0). */
 	function trackOutbound(url: string) {
+		if (!d.isOwner) return;
 		try {
 			fetch('/api/corrections', {
 				method: 'POST',
@@ -155,14 +166,18 @@
 		<span>{d.sectionTitle}</span><span class="fl">❦</span>
 		<a href="/">↩ Return to the front page</a>
 		<span class="fl">❦</span>
-		<a href="/grade">Grade this edition</a>
-		<span class="fl">❦</span>
+		{#if d.isOwner}<a href="/grade">Grade this edition</a>
+		<span class="fl">❦</span>{/if}
 		<NightToggle />
 		{#if d.isDemo}<span class="fl">❦</span><span>demo edition — mock data only</span>{/if}
 	</div>
 
 	<div class="reader-grid">
-		<article class="reader-main" use:impression={impressionInfo()} data-item-id={d.item.id}>
+		<article
+			class="reader-main"
+			use:impression={d.isOwner ? impressionInfo() : null}
+			data-item-id={d.item.id}
+		>
 			<p class="kicker"><b>{m.mark} {m.label}</b> · via {d.item.source}{#if d.item.captured_at} · captured {d.item.captured_at.slice(0, 10)}{/if}</p>
 			<h1 class="display">{d.item.title}</h1>
 			<!-- Extension point (depth ladder, t_2f96c207): a pre-read tier slots
@@ -187,8 +202,10 @@
 			<div class="end-furniture">
 				<span class="fl">❦</span>
 				<a href="/">↩ Return to the front page</a>
-				<span class="fl">·</span>
-				<a href="/grade">Grade this edition →</a>
+				{#if d.isOwner}
+					<span class="fl">·</span>
+					<a href="/grade">Grade this edition →</a>
+				{/if}
 				<span class="fl">❦</span>
 			</div>
 		</article>
@@ -215,8 +232,11 @@
 			</div>
 
 			<!-- Sticky verdict card (spike decision #3): grade while you read,
-			     same /grade semantics — supersede, never contradict. -->
-			<div class="verdict-card screen-only">
+			     same /grade semantics — supersede, never contradict. Owner-only
+			     (t_43e48cd0): anonymous readers get no verdict card, no grade
+			     links, no sign-in nagging — reading is the whole public surface. -->
+			{#if d.isOwner}
+				<div class="verdict-card screen-only">
 				<span class="vq">Worth your time?</span>
 				<div class="vc-btns">
 					{#each VERDICTS as v (v)}
@@ -235,6 +255,7 @@
 				{/if}
 				{#if verdictError}<span class="vote-note">{verdictError}</span>{/if}
 			</div>
+		{/if}
 		</aside>
 	</div>
 

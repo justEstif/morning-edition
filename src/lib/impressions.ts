@@ -132,9 +132,13 @@ function flush({ beacon = false }: { beacon?: boolean } = {}) {
 }
 
 /** Svelte action: `use:impression={info}` on any edition/panel item element.
+ *  `info = null` opts the element out entirely — the public reader pages
+ *  pass null for anonymous visitors (reading is public, writes are
+ *  owner-only, card t_43e48cd0) so an anonymous read never tracks.
  *  Exposed exposures are finalized and flushed on destroy so SvelteKit
  *  client-side navigation doesn't drop them. */
-export function impression(node: HTMLElement, info: ImpressionInfo) {
+export function impression(node: HTMLElement, info: ImpressionInfo | null) {
+  if (!info) return {}; // anonymous: no exposure, no observer, no writes
   if (qualified.has(info.item_id)) return {}; // already counted this session
   if (viewportTooSmall()) return {}; // tiny viewport: no tracking at all
 

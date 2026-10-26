@@ -12,7 +12,7 @@ import type { PageServerLoad } from "./$types.js";
  *  spike cross-cutting decision #4. It never dead-ends, and it never mutates
  *  Readeck state (archive-sync is a later card). Ids are the edition's item
  *  ids, unchanged — every ledger event from this page stays referential. */
-export const load: PageServerLoad = async ({ params, url }) => {
+export const load: PageServerLoad = async ({ params, url, locals }) => {
   const date = url.searchParams.get("date") || undefined;
   const raw = date ? await editions.loadByDate(date) : await editions.loadLatest();
   if (!raw) {
@@ -49,5 +49,8 @@ export const load: PageServerLoad = async ({ params, url }) => {
     text: article?.text ?? null,
     more,
     isDemo: editions.isDemo,
+    // Reading is public (t_43e48cd0); owner affordances — the verdict card,
+    // grade links, and every write — render only for the owner session.
+    isOwner: locals.user !== null,
   };
 };
