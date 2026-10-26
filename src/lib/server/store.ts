@@ -29,12 +29,15 @@ import {
   attachFlipMs,
   rejectionRecordFor,
   referentiallyValid,
+  stampAudience,
   type HighlightRow,
   type LedgerEvent,
   type StampDeps,
   type VerdictEvent,
 } from "$lib/domain/feedback.js";
 import type {
+  AnnotationRow,
+  AnnotationSink,
   CorrectionSink,
   EditionStore,
   HighlightsSource,
@@ -170,6 +173,10 @@ export const corrections: CorrectionSink = {
       const prev = await lastVerdictInSession(ev.session_id, ev.item_id, ev.edition_date);
       attachFlipMs(ev, prev);
     }
+    // Classify-and-ignore (card t_e86490c0): every append through this sink
+    // is owner-authenticated (the session gate refuses anonymous writes),
+    // so the row is stamped owner at write time.
+    stampAudience(ev, "owner");
     await fs.mkdir(DATA_DIR, { recursive: true });
     await fs.appendFile(correctionsPath(), JSON.stringify(ev) + "\n", "utf8");
   },
@@ -216,6 +223,42 @@ async function lastVerdictInSession(
   }
   return last;
 }
+
+/** AnnotationSink port → annotations.jsonl on the volume (card t_e86490c0):
+ *  the owner's marginalia — highlights (offsets into stored extracted text),
+ *  attached private notes/comments, retracts. Append-only exactly like the
+ *  ledger; torn/corrupt lines are skipped on read, never fatal. This file is
+ *  owner-private by construction: the session gate refuses every anonymous
+ *  request, and no anonymous code path reaches this adapter. */
+function annotationsPath() {
+  return path.join(DATA_DIR, "annotations.jsonl");
+}
+
+export const annotations: AnnotationSink = {
+  async append(row: AnnotationRow): Promise<void> {
+    await fs.mkdir(DATA_DIR, { recursive: true });
+    await fs.appendFile(annotationsPath(), JSON.stringify(row) + "\n", "utf8");
+  },
+
+  async readAll(): Promise<AnnotationRow[]> {
+    const rows: AnnotationRow[] = [];
+    let raw: string;
+    try {
+      raw = await fs.readFile(annotationsPath(), "utf8");
+    } catch {
+      return [];
+    }
+    for (const line of raw.split("\n")) {
+      if (!line.trim()) continue;
+      try {
+        rows.push(JSON.parse(line) as AnnotationRow);
+      } catch {
+        continue; // a torn line never breaks the marginalia
+      }
+    }
+    return rows;
+  },
+};
 
 /** Referential check composed the way the corrections route uses it: load the
  *  edition for the event's date (null → fail-open, per domain semantics),

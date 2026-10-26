@@ -80,6 +80,13 @@ export function readLedger(): RankerEvent[] | null {
     if (!trimmed) continue;
     try {
       const row = JSON.parse(trimmed) as Record<string, unknown>;
+      // Anonymous-impression classification (card t_e86490c0, decision doc
+      // docs/decisions/2026-10-26-anonymous-impression-classification.md):
+      // CLASSIFY-AND-IGNORE — the ledger is owner-signal only, and any row
+      // explicitly stamped with a non-owner audience is a stranger's signal:
+      // skip it, never weigh it. Rows without the field predate the stamp
+      // and are implicitly owner rows.
+      if (typeof row.audience === "string" && row.audience !== "owner") continue;
       events.push({
         ts: typeof row.ts === "string" ? row.ts : "",
         type: typeof row.type === "string" ? row.type : "",

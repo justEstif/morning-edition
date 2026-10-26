@@ -7,12 +7,13 @@
    the domain owns the semantics (validators, reduction, flip window in
    feedback.ts / edition.ts). */
 import type { RawEdition } from "./edition.js";
+import type { AnnotationRow } from "./annotations.js";
 import type { HighlightRow, LedgerEvent, RejectionRecord, VerdictEvent } from "./feedback.js";
 import type { ExploreCandidate, ExplorePick } from "./explore.js";
 import type { PoolCandidate } from "./pool.js";
 import type { ReaderArticles } from "./reader.js";
 
-export type { RejectionRecord };
+export type { RejectionRecord, AnnotationRow };
 
 /** The explore-slot decision (research R3, card t_889bc508). Unlike the I/O
  *  ports below this is a PURE function contract: given the candidate pool
@@ -80,12 +81,25 @@ export interface ReaderSource {
   load(): Promise<ReaderArticles | null>;
 }
 
+/** Owner marginalia (card t_e86490c0): append-only annotations.jsonl on the
+ *  volume — highlights (offsets into stored extracted text) + attached
+ *  owner-private notes/comments + retracts. Append-only like the ledger;
+ *  reduction is domain (annotations.ts reduceAnnotations). Owner-private by
+ *  construction: no anonymous path ever reads through this port. */
+export interface AnnotationSink {
+  /** Append one validated row (one JSON line; file order = append order). */
+  append(row: AnnotationRow): Promise<void>;
+  /** All rows, file order; torn/corrupt lines are skipped. */
+  readAll(): Promise<AnnotationRow[]>;
+}
+
 /** Aggregate of the ports the routes need, as the composition root provides
  *  them (keeps route files to a single adapter import). */
 export interface AppPorts {
   editions: EditionStore;
   highlights: HighlightsSource;
   corrections: CorrectionSink;
+  annotations: AnnotationSink;
   pool: PoolStore;
   reader: ReaderSource;
 }

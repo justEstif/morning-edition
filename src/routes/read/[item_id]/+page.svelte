@@ -2,6 +2,7 @@
 	import '../../../app.css';
 	import NightToggle from '$lib/NightToggle.svelte';
 	import { markFor } from '$lib/domain/edition.js';
+	import { paragraphSegments, type Seg } from '$lib/domain/annotations.js';
 	import type { Reason, Verdict, VerdictPostBody } from '$lib/domain/feedback.js';
 	import { impression } from '$lib/impressions.js';
 	// The dwell module settles any pending open (the front page's click) on
@@ -157,7 +158,185 @@
 		}
 	}
 	const host = $derived(hostOf(d.item.url));
+
+	/* ---- Owner marginalia (card t_e86490c0) ----
+	   Highlights anchor to CHARACTER OFFSETS IN THE STORED EXTRACTED TEXT:
+	   the load hands the owner the paragraph→offset map (paraStarts), the
+	   selection is mapped into those offsets locally, and the server slices
+	   the quote out of the stored text at write time. The render-time drift
+   pass already ran server-side (verifyAnchor): only anchor-verified marks
+   render in the body — a drifted mark appears in the margin flagged,
+   never silently mis-highlighted. Anonymous readers get none of this:
+   no marks, no offsets, no controls (public read writes nothing). */
+	type OwnerMark = PageData['marginalia'][number];
+
+	let marks = $state<OwnerMark[]>([]);
+	let pendingSel = $state<{ start: number; end: number; excerpt: string } | null>(null);
+	let markError = $state('');
+	let savingMark = $state(false);
+	let composing = $state<{ kind: 'note' | 'comment'; markId: string } | null>(null);
+	let composeText = $state('');
+
+	$effect(() => {
+		// Re-hydrate from the owner payload on every load (client-side nav
+		// between articles reuses this component instance).
+		marks = d.marginalia;
+		pendingSel = null;
+		composing = null;
+	});
+
+	/* The anchor-verified marks are the only ones allowed to touch the body. */
+	const verifiedMarks = $derived(marks.filter((mk) => mk.anchor.ok));
+
+	function segsFor(i: number, text: string): Seg[] {
+		const start = d.paraStarts?.[i];
+		if (!d.isOwner || start === undefined || verifiedMarks.length === 0)
+			return [{ text, markId: null }];
+		return paragraphSegments({ text, start, end: start + text.length }, verifiedMarks);
+	}
+
+	/* Selection → stored-text offsets. Both boundaries must sit inside a
+	   .reader-body paragraph (the digest lede is NOT stored text — marks
+	   there are impossible by construction). */
+	function textOffsetInPara(p: HTMLElement, node: Node, offset: number): number | null {
+		if (node === p) return offset === 0 ? 0 : null;
+		const walker = document.createTreeWalker(p, NodeFilter.SHOW_TEXT);
+		let acc = 0;
+		while (walker.nextNode()) {
+			const n = walker.currentNode;
+			if (n === node) return acc + offset;
+			acc += n.textContent?.length ?? 0;
+		}
+		return null;
+	}
+
+	function paraOf(node: Node): { el: HTMLElement; idx: number } | null {
+		const el = node.nodeType === Node.TEXT_NODE ? node.parentElement : (node as HTMLElement);
+		const p = el?.closest?.('p[data-p]');
+		if (!p || !p.closest('.reader-body')) return null;
+		return { el: p as HTMLElement, idx: Number((p as HTMLElement).dataset.p) };
+	}
+
+	function captureSelection() {
+		if (!d.isOwner || !d.paraStarts) {
+			pendingSel = null;
+			return;
+		}
+		const sel = document.getSelection();
+		if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
+			pendingSel = null;
+			return;
+		}
+		const range = sel.getRangeAt(0);
+		const a = paraOf(range.startContainer);
+		const b = paraOf(range.endContainer);
+		const oa = a ? textOffsetInPara(a.el, range.startContainer, range.startOffset) : null;
+		const ob = b ? textOffsetInPara(b.el, range.endContainer, range.endOffset) : null;
+		const sa = a ? d.paraStarts[a.idx] : undefined;
+		const sb = b ? d.paraStarts[b.idx] : undefined;
+		if (oa === null || ob === null || sa === undefined || sb === undefined) {
+			pendingSel = null;
+			return;
+		}
+		let start = sa + oa;
+		let end = sb + ob;
+		if (start > end) [start, end] = [end, start];
+		if (end - start < 3) {
+			pendingSel = null; // a stray click is not a passage
+			return;
+		}
+		pendingSel = {
+			start,
+			end,
+			excerpt: sel.toString().replace(/\s+/g, ' ').trim().slice(0, 160)
+		};
+	}
+
+	async function saveMark() {
+		if (!pendingSel || savingMark) return;
+		savingMark = true;
+		markError = '';
+		try {
+			const r = await fetch('/api/annotations', {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({
+					type: 'highlight',
+					item_id: d.item.id,
+					edition_date: d.editionDate,
+					start: pendingSel.start,
+					end: pendingSel.end
+				})
+			});
+			if (!r.ok) throw new Error((await r.json()).error || String(r.status));
+			const res = await r.json();
+			marks = [...marks, { ...res.row, notes: [], comments: [], anchor: { ok: true } }];
+			pendingSel = null;
+			document.getSelection()?.removeAllRanges();
+		} catch (err) {
+			markError =
+				'the mark never reached the desk — ' +
+				(err instanceof Error ? err.message : String(err));
+		} finally {
+			savingMark = false;
+		}
+	}
+
+	function startCompose(kind: 'note' | 'comment', markId: string) {
+		composing = { kind, markId };
+		composeText = '';
+	}
+
+	async function saveCompose() {
+		if (!composing || !composeText.trim()) return;
+		const { kind, markId } = composing;
+		const text = composeText.trim();
+		try {
+			const r = await fetch('/api/annotations', {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ type: kind, target: markId, text })
+			});
+			if (!r.ok) throw new Error((await r.json()).error || String(r.status));
+			const res = await r.json();
+			marks = marks.map((mk) =>
+				mk.id === markId
+					? {
+							...mk,
+							[kind === 'note' ? 'notes' : 'comments']: [
+								...mk[kind === 'note' ? 'notes' : 'comments'],
+								{ id: res.row.id, ts: res.row.ts, text: res.row.text }
+							]
+						}
+					: mk
+			);
+			composing = null;
+			composeText = '';
+		} catch (err) {
+			markError =
+				'it never reached the desk — ' + (err instanceof Error ? err.message : String(err));
+		}
+	}
+
+	async function discard(id: string) {
+		try {
+			const r = await fetch('/api/annotations', {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ type: 'retract', target: id })
+			});
+			if (!r.ok) throw new Error((await r.json()).error || String(r.status));
+			marks = marks.filter((mk) => mk.id !== id);
+			if (composing?.markId === id) composing = null;
+		} catch (err) {
+			markError =
+				'the retraction never reached the desk — ' +
+				(err instanceof Error ? err.message : String(err));
+		}
+	}
 </script>
+
+<svelte:document onselectionchange={captureSelection} />
 
 <svelte:head>
 	<title>{d.item.title} — The Morning Edition — {d.dateLong}</title>
@@ -176,7 +355,9 @@
 		<a href="/">↩ Return to the front page</a>
 		<span class="fl">❦</span>
 		{#if d.isOwner}<a href="/grade">Grade this edition</a>
-		<span class="fl">❦</span>{/if}
+			<span class="fl">❦</span>
+			<a href="/admin">The desk</a>
+			<span class="fl">❦</span>{/if}
 		<NightToggle />
 		{#if d.isDemo}<span class="fl">❦</span><span>demo edition — mock data only</span>{/if}
 	</div>
@@ -207,14 +388,24 @@
 					<summary>The raw extract, as scraped</summary>
 					<div class="reader-body digest-raw-body">
 						{#each paragraphs as p, i (i)}
-							<p>{p}</p>
+							{@const segs = segsFor(i, p)}
+							<p data-p={i}
+								>{#each segs as s, j (j)}{#if s.markId}<mark class="rd-mark" data-mark={s.markId}
+										>{s.text}</mark
+									>{:else}{s.text}{/if}{/each}</p
+							>
 						{/each}
 					</div>
 				</details>
 			{:else if d.text}
 				<div class="reader-body">
 					{#each paragraphs as p, i (i)}
-						<p class={i === dropIdx ? 'dc' : ''}>{p}</p>
+						{@const segs = segsFor(i, p)}
+						<p class={i === dropIdx ? 'dc' : ''} data-p={i}
+							>{#each segs as s, j (j)}{#if s.markId}<mark class="rd-mark" data-mark={s.markId}
+									>{s.text}</mark
+								>{:else}{s.text}{/if}{/each}</p
+						>
 					{/each}
 				</div>
 			{:else}
@@ -271,7 +462,60 @@
 				</dl>
 			</div>
 
-			<!-- Sticky verdict card (spike decision #3): grade while you read,
+			<!-- Owner marginalia (card t_e86490c0): the owner's private marks,
+		     notes and longer comments — set in the house register (small caps,
+		     dagger marks, hairline rules), never a floating annotator toolbar.
+		     Anonymous readers get nothing here. -->
+		{#if d.isOwner}
+			<div class="marginalia">
+				<div class="cap">Marginalia</div>
+				{#if pendingSel}
+					<div class="mark-pending">
+						<p class="mp-quote">†&nbsp;{pendingSel.excerpt}</p>
+						<div class="mk-actions">
+							<button type="button" class="mk-btn" onclick={saveMark} disabled={savingMark}>
+								{savingMark ? 'setting…' : 'mark it'}
+							</button>
+							<button type="button" class="mk-btn" onclick={() => (pendingSel = null)}>dismiss</button>
+						</div>
+					</div>
+				{/if}
+				{#each marks as mk (mk.id)}
+					<div class="mark-entry" class:drifted={!mk.anchor.ok}>
+						{#if mk.anchor.ok}
+							<p class="mk-quote">†&nbsp;{mk.quote}</p>
+						{:else}
+							<p class="mk-quote mk-drift">†&nbsp;lost its anchor — the stored text changed under this mark</p>
+						{/if}
+						{#each mk.notes as n (n.id)}<p class="mk-note">{n.text}</p>{/each}
+						{#each mk.comments as c (c.id)}<p class="mk-comment">{c.text}</p>{/each}
+						{#if composing && composing.markId === mk.id}
+							<textarea
+								class="mk-input"
+								bind:value={composeText}
+								placeholder={composing.kind === 'note' ? 'a note, short…' : 'a longer remark…'}
+							></textarea>
+							<div class="mk-actions">
+								<button type="button" class="mk-btn" onclick={saveCompose}>save</button>
+								<button type="button" class="mk-btn" onclick={() => (composing = null)}>cancel</button>
+							</div>
+						{:else}
+							<div class="mk-actions">
+								<button type="button" class="mk-btn" onclick={() => startCompose('note', mk.id)}>note</button>
+								<button type="button" class="mk-btn" onclick={() => startCompose('comment', mk.id)}>comment</button>
+								<button type="button" class="mk-btn" onclick={() => discard(mk.id)}>discard</button>
+							</div>
+						{/if}
+					</div>
+				{/each}
+				{#if marks.length === 0 && !pendingSel}
+					<p class="mk-empty">select any passage below to set a private mark.</p>
+				{/if}
+				{#if markError}<span class="vote-note">{markError}</span>{/if}
+			</div>
+		{/if}
+
+		<!-- Sticky verdict card (spike decision #3): grade while you read,
 			     same /grade semantics — supersede, never contradict. Owner-only
 			     (t_43e48cd0): anonymous readers get no verdict card, no grade
 			     links, no sign-in nagging — reading is the whole public surface. -->

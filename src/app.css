@@ -1034,6 +1034,110 @@ details.fold > .fold-body {
   margin: 0 0 8px;
   line-height: 1.55;
 }
+
+/* ---- Owner marginalia (card t_e86490c0). The house register, not SaaS
+   chrome: no floating annotator toolbar — the selection is answered in the
+   margin, in small caps with dagger marks and hairline rules. Screen-only:
+   the print edition carries the author's text, not the owner's desk work. */
+mark.rd-mark {
+  background: transparent;
+  color: inherit;
+  box-shadow: 0 1px 0 var(--rule); /* a hairline under the marked words */
+}
+mark.rd-mark::after {
+  content: "†";
+  font-size: 0.62em;
+  vertical-align: super;
+  margin-left: 1px;
+  color: var(--mid);
+}
+.marginalia {
+  margin-bottom: 22px;
+  padding-bottom: 10px;
+}
+.marginalia .cap {
+  font-family: var(--sc);
+  font-size: 10.5px;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--mid);
+  margin-bottom: 6px;
+}
+.mark-pending {
+  border-left: 1px solid var(--rule);
+  padding-left: 10px;
+  margin-bottom: 14px;
+}
+.mp-quote,
+.mk-quote {
+  margin: 0 0 4px;
+  font-style: italic;
+  line-height: 1.45;
+  color: var(--ink);
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.mk-drift {
+  color: var(--mid);
+}
+.mk-note,
+.mk-comment {
+  margin: 2px 0 0;
+  padding-left: 10px;
+  border-left: 1px solid var(--rule);
+  line-height: 1.45;
+  color: var(--mid);
+}
+.mk-comment {
+  font-style: italic;
+}
+.mk-actions {
+  display: flex;
+  gap: 2px 12px;
+  flex-wrap: wrap;
+  margin: 4px 0 10px;
+}
+.mk-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--sc);
+  font-size: 10.5px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--mid);
+}
+.mk-btn:hover {
+  color: var(--ink);
+}
+.mk-btn:disabled {
+  color: var(--rule);
+  cursor: default;
+}
+.mk-input {
+  width: 100%;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--rule);
+  font-family: var(--serif);
+  font-size: 13px;
+  color: var(--ink);
+  resize: vertical;
+  min-height: 44px;
+  margin-bottom: 4px;
+}
+.mk-input:focus {
+  outline: none;
+  border-bottom-color: var(--mid);
+}
+.mk-empty {
+  margin: 0;
+  font-style: italic;
+  color: var(--mid);
+}
 .more-section {
   grid-column: 1 / -1;
   margin-top: 34px;
@@ -1191,6 +1295,19 @@ details.fold > .fold-body {
   .end-furniture,
   .more-section {
     display: none !important;
+  }
+  /* The owner's desk work stays off paper too (card t_e86490c0): marginalia
+     is screen-only; printed marks print as plain text (hairline + dagger
+     dropped) so a shared printout never carries private notes. */
+  .marginalia,
+  .mark-pending {
+    display: none !important;
+  }
+  mark.rd-mark {
+    box-shadow: none;
+  }
+  mark.rd-mark::after {
+    content: none;
   }
   a {
     text-decoration: none;

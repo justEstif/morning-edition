@@ -4,6 +4,7 @@ import {
   EXPOSURE_MIN_MS,
   referentiallyValid,
   rejectionRecordFor,
+  stampAudience,
   summarizeCorrections,
   validateCorrection,
   validateImpression,
@@ -479,5 +480,24 @@ describe("validateImpressionBatch — batched POST body", () => {
     expect(() => validateImpressionBatch({ events: [] }, deps)).toThrow(/must not be empty/);
     expect(() => validateImpressionBatch({ nope: true }, deps)).toThrow(/\{events: \[\.\.\.\]\}/);
     expect(() => validateImpressionBatch([IMPRESSION_BODY], deps)).toThrow(/JSON object/);
+  });
+});
+
+describe("stampAudience — the classify-and-ignore classification (t_e86490c0)", () => {
+  it("stamps every v2 event owner at write time", () => {
+    const ev = validateCorrection(VERDICT_BODY, deps);
+    stampAudience(ev, "owner");
+    expect((ev as VerdictEvent).audience).toBe("owner");
+  });
+  it("leaves v1 legacy rows unstamped (they predate the field)", () => {
+    const v1: LedgerEvent = {
+      ts: deps.now(),
+      type: "vote",
+      value: "up",
+      item_id: "x",
+      edition_date: "2026-10-25",
+    };
+    stampAudience(v1, "owner");
+    expect(v1).not.toHaveProperty("audience");
   });
 });

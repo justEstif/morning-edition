@@ -12,7 +12,7 @@
      {"id":"e-<rand>","ts":"ISO-8601","schema_v":2,"session_id":"...",
       "item_id":"...","item_url":"...","source":"readeck|miniflux|hn",
       "edition_date":"YYYY-MM-DD",
-      "type":"verdict|click|impression|read_progress|star|capture|highlight",
+      "type":"verdict|click|escalate|impression|read_progress|star|capture|highlight",
       ...type payload}
 
    PUBLIC API SURFACE vs TRUSTED SYNC PATH (enforced by type + validator):
@@ -38,6 +38,7 @@ export type Reason = "wrong-angle" | "already-read" | "wrong-source" | "dup" | "
 export type LedgerEventType =
   | "verdict"
   | "click"
+  | "escalate"
   | "impression"
   | "dwell"
   | "read_progress"
@@ -71,7 +72,15 @@ export const FLIP_MS = 2000;
 
 /* ----- v2 envelope + events ----- */
 
-/** Shared v2 envelope fields (id + ts are server-stamped at write time). */
+/** Shared v2 envelope fields (id + ts are server-stamped at write time).
+ *  `audience` is the additive classification stamp (card t_e86490c0, decision
+ *  doc docs/decisions/2026-10-26-anonymous-impression-classification.md):
+ *  CLASSIFY-AND-IGNORE — anonymous writes are refused at the gate, so every
+ *  row is an owner row; the server stamps audience:"owner" at write time
+ *  (store adapter, stampAudience) and the ranker ignores any row whose
+ *  audience is present and is not "owner". Old rows without the field are
+ *  implicitly owner rows. The "anon" enum member is reserved for the day
+ *  friends read the site (tag-and-downweight) — schema unchanged if so. */
 interface Envelope {
   id: string;
   ts: string;
@@ -81,6 +90,14 @@ interface Envelope {
   item_url?: string;
   source?: string;
   edition_date: string;
+  audience?: "owner" | "anon";
+}
+
+/** Write-time audience stamp (see Envelope above). v1 legacy rows have no
+ *  envelope and stay unstamped — they predate anonymous reading being
+ *  possible and are implicitly owner rows. */
+export function stampAudience(ev: LedgerEvent, audience: "owner" | "anon"): void {
+  if (ev.schema_v === 2) ev.audience = audience;
 }
 
 /** v2 verdict event (grading desk). flip_ms is stamped by the server when the
@@ -97,6 +114,16 @@ export interface VerdictEvent extends Envelope {
 export interface ClickEvent extends Envelope {
   type: "click";
   url: string;
+}
+
+/** v2 escalate event (depth ladder, card t_2f96c207): the reader opened the
+ *  full piece from the pre-read — THE deep-read signal of the ladder. A new
+ *  additive kind, not a reuse of `click`: an escalation is an IN-PAPER
+ *  commitment (no outbound hop, no url), and conflating it with external
+ *  click-throughs would blur exactly the distinction the ladder exists to
+ *  measure. Envelope-only payload; the item's tier rides the edition. */
+export interface EscalateEvent extends Envelope {
+  type: "escalate";
 }
 
 /* Impression (viewport exposure, card t_41df1f78 / research R1): an item
@@ -236,6 +263,7 @@ export type SyncLedgerEvent =
 export type LedgerEvent =
   | VerdictEvent
   | ClickEvent
+  | EscalateEvent
   | ImpressionEvent
   | DwellEvent
   | SyncLedgerEvent
@@ -263,6 +291,14 @@ export type PublicCorrectionInput =
   | {
       type: "click";
       url: string;
+      session_id: string;
+      item_id: string;
+      item_url?: string;
+      source?: string;
+      edition_date: string;
+    }
+  | {
+      type: "escalate";
       session_id: string;
       item_id: string;
       item_url?: string;
@@ -364,9 +400,12 @@ export function validateCorrection(body: unknown, deps: StampDeps): LedgerEvent 
 
   // v2 events: shared envelope + type payload. Implicit signal types are
   // sync-path only — they are structurally absent from the public input
-  // union and rejected here at runtime.
-  if (type !== "verdict" && type !== "click") {
-    throw new Error("type must be verdict|click (or legacy vote|grade)");
+  // union and rejected here at runtime. `escalate` (depth ladder,
+  // t_2f96c207) is public but owner-session-only in practice: the reader
+  // page never tracks anonymous visitors, and the envelope needs no payload
+  // beyond the shared fields (the ADDITIVE kind — existing rows untouched).
+  if (type !== "verdict" && type !== "click" && type !== "escalate") {
+    throw new Error("type must be verdict|click|escalate (or legacy vote|grade)");
   }
   const sessionId = bounded(body.session_id, 100);
   if (!sessionId) throw new Error("session_id required (v2 envelope)");
@@ -405,6 +444,11 @@ export function validateCorrection(body: unknown, deps: StampDeps): LedgerEvent 
       out.supersedes = sup;
     }
     return out;
+  }
+  if (type === "escalate") {
+    // Envelope-only payload — the escalation IS the signal (no url: it is an
+    // in-paper commitment, not an outbound hop).
+    return { ...ev, type } as EscalateEvent;
   }
   // click
   const url = bounded(body.url, 2000);

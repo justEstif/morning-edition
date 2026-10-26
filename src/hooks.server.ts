@@ -3,13 +3,16 @@
    public, card t_43e48cd0); everything else — /grade, /panel, /admin,
    all of /api/corrections (GET included: its response is per-item
    verdicts, and /api/edition maps ids to headlines, so together they
-   would expose his reading history), and /api/impressions (the sibling
+   would expose his reading history), /api/impressions (the sibling
    card's contract: logged-in signals only, public visitors are never
-   tracked) — requires a valid session cookie. Default-deny: any future
-   route is private until added here. The /read pages themselves render
-   for anonymous visitors, but every write from them (verdicts, clicks,
-   impressions, dwell) lands on a gated /api route and is refused —
-   anonymous reading never writes owner signal.
+   tracked), and /api/annotations (the owner's private marginalia —
+   highlights, notes, comments; card t_e86490c0; there is deliberately no
+   anonymous read of it either) — requires a valid session cookie.
+   Default-deny: any future route is private until added here. The /read
+   pages themselves render for anonymous visitors, but every write from
+   them (verdicts, clicks, impressions, dwell, marks) lands on a gated
+   /api route and is refused — anonymous reading never writes owner
+   signal.
    API surfaces answer 401 JSON (never a redirect); pages 303 to the login
    door with a `next` return path. */
 import { redirect, type Handle } from "@sveltejs/kit";
