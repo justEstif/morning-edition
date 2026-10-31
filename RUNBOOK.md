@@ -34,7 +34,7 @@ With `ME_DATA_DIR` unset the app reads `data/demo/` and shows the
 "demo edition — mock data only" rail. `/` and `/api/edition` are public;
 the gated pages need a login (next step).
 
-### 3. Demo login env (for filming `/grade`, `/panel`, `/admin`)
+### 3. Demo login env (for filming `/grade`, `/admin`)
 
 ```sh
 ME_ADMIN_USER=demo ME_ADMIN_PASS=<anything-you-choose> \

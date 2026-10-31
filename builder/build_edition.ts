@@ -4,9 +4,9 @@
    Usage:
        tsx builder/build_edition.ts <edition.json> <output_dir>
 
-   Reads templates/broadsheet.html, templates/panel.html and templates/broadsheet.css
+   Reads templates/broadsheet.html and templates/broadsheet.css
    (found relative to the repository root) and writes <output_dir>/index.html,
-   <output_dir>/panel.html, <output_dir>/grade.html plus assets/style.css and
+   <output_dir>/grade.html plus assets/style.css and
    assets/feedback.js.
    The output is a pure function of the edition JSON and the templates — no
    timestamps, no randomness — so rebuilding the same edition is deterministic.
@@ -240,32 +240,6 @@ function renderGradeRows(items: Item[]): string {
   return chunks.join("\n");
 }
 
-function renderPanelBoxes(items: Item[]): string {
-  const sections = groupItems(items);
-  const order =
-    sections["captured"].length > 0
-      ? ["captured", ...SECTION_ORDER.slice(1)]
-      : SECTION_ORDER.slice(1);
-  const boxes: string[] = [];
-  for (const key of order) {
-    if (sections[key].length === 0) continue;
-    const lis = sections[key]
-      .map((it) => {
-        const mark = it.section === "might-like" ? "&#10033;" : KIND_MARKS[it.kind];
-        return (
-          `      <li><a href="${esc(it.url)}"><span class="t">${esc(it.title)}</span></a>` +
-          `<span class="mk">${mark}</span>` +
-          `<span class="src">${KIND_LABELS[it.kind]} &middot; via ${esc(it.source)}</span></li>`
-        );
-      })
-      .join("\n");
-    boxes.push(
-      `  <div class="topic-box">\n    <h2>${SECTION_TITLES[key]}</h2>\n    <ul>\n${lis}\n    </ul>\n  </div>`,
-    );
-  }
-  return boxes.join("\n");
-}
-
 function fillTemplate(
   template: string,
   editionDate: string,
@@ -321,12 +295,6 @@ export function build(editionPath: string, outputDir: string): void {
     GRADE_ROWS: renderGradeRows(items),
   });
 
-  const panelTemplate = readFileSync(join(TEMPLATES_DIR, "panel.html"), "utf-8");
-  const panelPage = fillTemplate(panelTemplate, editionDate, items.length, {
-    TITLE: `The Morning Edition &mdash; QuickStudy panel &mdash; ${longDate(editionDate)}`,
-    PANEL_SECTIONS: renderPanelBoxes(items),
-  });
-
   mkdirSync(outputDir, { recursive: true });
   const assets = join(outputDir, "assets");
   mkdirSync(assets, { recursive: true });
@@ -334,11 +302,10 @@ export function build(editionPath: string, outputDir: string): void {
   copyFileSync(join(TEMPLATES_DIR, "feedback.js"), join(assets, "feedback.js"));
   writeFileSync(join(outputDir, "index.html"), page);
   writeFileSync(join(outputDir, "grade.html"), gradePage);
-  writeFileSync(join(outputDir, "panel.html"), panelPage);
   const sectionCount = order.filter((key) => (sections[key] ?? []).length > 0).length;
   console.log(
     `wrote ${join(outputDir, "index.html")} (${items.length} items, ` +
-      `${sectionCount + (leadHtml ? 1 : 0)} sections incl. lead; also grade.html, panel.html)`,
+      `${sectionCount + (leadHtml ? 1 : 0)} sections incl. lead; also grade.html)`,
   );
 }
 

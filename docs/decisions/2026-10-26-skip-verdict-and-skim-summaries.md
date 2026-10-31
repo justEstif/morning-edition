@@ -1,5 +1,11 @@
 # Decision: the `skip` verdict (explicit not-interested) + inline skim summaries on the QuickStudy panel
 
+> **Superseded 2026-10-31 (card t_0714b066): the QuickStudy panel surface was
+> removed entirely** — the unified reading model made it redundant. Part 1
+> (the `skip` verdict) is unaffected. Part 2's build-time merge decision
+> stands: skim summaries are still merged into edition.json and the data
+> stays in the ledger/edition JSON — only the rendering surface is gone.
+
 Date: 2026-10-26 · Card: t_1e178af7 · Feeds: the recommendations loop (t_b45f60dc)
 
 ## Part 1 — the `skip` verdict
@@ -102,7 +108,8 @@ Rationale:
 
 ### Rendering rule
 
-On `/panel`, an item shows its skim summary **only when it has no brief**:
+On the QuickStudy panel (removed 2026-10-31, t_0714b066), an item showed its
+skim summary **only when it has no brief**:
 brief-less items (deep-read teasers, captures) were exactly the title-only
 outbound links; items with a brief keep the brief, which was co-written for
 the paper and already passes the teaser/length gates. The summary renders in

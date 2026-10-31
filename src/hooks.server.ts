@@ -1,6 +1,6 @@
 /* The session gate. One hook guards every surface: public stays public
    (/, /login, /api/edition, and every /read/<id> reader page — reading is
-   public, card t_43e48cd0); everything else — /grade, /panel, /admin,
+   public, card t_43e48cd0); everything else — /grade, /admin,
    all of /api/corrections (GET included: its response is per-item
    verdicts, and /api/edition maps ids to headlines, so together they
    would expose his reading history), /api/impressions (the sibling
@@ -21,10 +21,21 @@ import { SESSION_COOKIE, verifySession } from "$lib/server/auth.js";
 const PUBLIC_PATHS = new Set(["/", "/login", "/api/edition"]);
 /** Public route prefixes (the in-paper reader). */
 const PUBLIC_PREFIXES = ["/read/"];
+/** Removed surface (card t_0714b066): the QuickStudy panel is gone. The
+   route no longer exists, so a logged-in visit already 404s — but the
+   default-deny gate would send an anonymous visit to /login, hiding the
+   removal. Answer 404 to everyone instead: the page is gone, not private. */
+const REMOVED_PATHS = ["/panel"];
 
 export const handle: Handle = async ({ event, resolve }) => {
   const claims = verifySession(event.cookies.get(SESSION_COOKIE), Math.floor(Date.now() / 1000));
   event.locals.user = claims?.user ?? null;
+
+  if (
+    REMOVED_PATHS.some((p) => event.url.pathname === p || event.url.pathname.startsWith(`${p}/`))
+  ) {
+    return new Response("Not found", { status: 404 });
+  }
 
   const isPublic =
     PUBLIC_PATHS.has(event.url.pathname) ||

@@ -67,7 +67,7 @@ a:hover {
    Tablet cap (card t_00e2bfd7): a broadsheet is a sheet, not a banner —
    past ~1120px the 12 tracks stretch. The FRONT PAGE no longer uses the
    tracks at all (see .page.sheet below); this grid remains the frame for
-   /grade, /panel and the reader. The gutter
+   /grade and the reader. The gutter
    clamp max drops 72→48px: 4vw reaches 48px at a 1200px viewport, so
    behavior below the 980/640 breakpoints is untouched, and the capped
    sheet no longer grows ever-wider margins on a 1920px display. */
@@ -387,28 +387,9 @@ footer {
   content: "\2746\00a0";
 }
 
-/* QuickStudy panel: same data, condensed topic boxes */
-.panel-cap {
-  grid-column: 1 / -1;
-  text-align: center;
-  font-family: var(--sc);
-  font-size: 11px;
-  letter-spacing: 3px;
-  text-transform: uppercase;
-  color: var(--mid);
-  padding: 22px 0 0;
-}
-.panel-grid {
-  /* Packed columns, not a stretchy grid (dead-whitespace pass, t_4c629db1):
-     a 2-col grid makes every row as tall as its tallest topic box — a
-     5-item box beside a 21-item one painted ~1300px of bordered emptiness.
-     CSS columns flow the boxes independently; break-inside keeps each box
-     whole. */
-  grid-column: 1 / -1;
-  columns: 2;
-  column-gap: 16px;
-  margin-top: 14px;
-}
+/* Topic boxes: bordered boxes with the double-rule top — used by the back
+   office stat grid. (The QuickStudy panel that shared these classes was
+   removed, card t_0714b066.) */
 .topic-box {
   break-inside: avoid;
   border: 1px solid var(--ink);
@@ -601,7 +582,7 @@ details.fold > .fold-body {
   text-align: left;
 }
 
-/* ---- 980px: /grade + /panel drop to 6 tracks; the front page is a single
+/* ---- 980px: /grade drops to 6 tracks; the front page is a single
    column already, so there is nothing left to collapse (t_2f627733) ---- */
 @media (max-width: 980px) {
   .page {
@@ -1025,12 +1006,6 @@ mark.rd-mark::after {
     flex-direction: column;
     align-items: center;
     gap: 5px;
-  }
-}
-
-@media (max-width: 760px) {
-  .panel-grid {
-    columns: 1;
   }
 }
 

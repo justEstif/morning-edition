@@ -72,8 +72,9 @@ export interface EditionItem {
   /** AI skim summary (card t_1e178af7): the reading-triage lane's summary for
    *  this URL, merged into edition.json at BUILD time from
    *  ~/.hermes/reading-triage/archive.json (the builder is the only writer;
-   *  matched by normalized URL). The QuickStudy panel renders it on items
-   *  with no brief, so skimmed items read without clicking out. Additive —
+   *  matched by normalized URL). The QuickStudy panel that rendered it on
+   *  items with no brief was removed (card t_0714b066) — the merged data
+   *  STAYS in edition.json (locked decision: only the surface went). Additive —
    *  parsed, never trusted; absence is normal (most items were never skimmed). */
   skim_summary?: string;
 }

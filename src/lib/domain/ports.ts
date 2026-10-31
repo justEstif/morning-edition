@@ -37,7 +37,7 @@ export interface EditionStore {
 }
 
 /** Synced Readeck highlight rows (highlights.json on the volume, written by
- *  the pipeline). Absent file → empty — the panel omits the study boxes. */
+ *  the pipeline). Absent file → empty — pages simply omit the study boxes. */
 export interface HighlightsSource {
   load(): Promise<HighlightRow[]>;
 }

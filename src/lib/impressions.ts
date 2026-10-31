@@ -1,5 +1,5 @@
 /* Client impression capture (card t_41df1f78, research R1).
-   A Svelte action per edition/panel item wires an IntersectionObserver
+   A Svelte action per edition item wires an IntersectionObserver
    (threshold = the domain's EXPOSURE_RATIO, no scroll handlers — zero
    observer churn while scrolling, zero layout shift). An exposure qualifies
    only at ≥EXPOSURE_RATIO intersection held ≥EXPOSURE_MIN_MS (both live in
@@ -131,7 +131,7 @@ function flush({ beacon = false }: { beacon?: boolean } = {}) {
   }
 }
 
-/** Svelte action: `use:impression={info}` on any edition/panel item element.
+/** Svelte action: `use:impression={info}` on any edition item element.
  *  `info = null` opts the element out entirely — the public reader pages
  *  pass null for anonymous visitors (reading is public, writes are
  *  owner-only, card t_43e48cd0) so an anonymous read never tracks.

@@ -1,5 +1,5 @@
 /* Client dwell capture (card t_ea679b5a, research R2).
-   Pairs an edition/panel item click with the reader's return: the click
+   Pairs an edition item click with the reader's return: the click
    records an open (epoch timestamp + item) in sessionStorage; the return is
    settled on whichever fires first —
      · the next page load of this app (same-tab back-navigation, and the

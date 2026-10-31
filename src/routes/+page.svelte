@@ -125,7 +125,6 @@
 	</div>
 	<div class="rail">
 		<span>{ed.dateLong}</span><span class="fl">❦</span>
-		<a href="/panel">QuickStudy panel</a><span class="fl">·</span>
 		<a href="/grade">Grade this edition</a>
 		<span class="fl">❦</span>
 		<NightToggle />
@@ -173,8 +172,6 @@
 	</div>
 
 	<div class="toolbar screen-only">
-		<a class="grade-link" href="/panel">QuickStudy panel</a>
-		<span class="fl">❦</span>
 		<a class="grade-link" href="/grade">Grade this edition →</a>
 		{#if data.isAdmin}<span class="fl">❦</span><a class="grade-link" href="/admin">Admin</a>{/if}
 	</div>

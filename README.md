@@ -25,7 +25,7 @@ are new adapters; the domain doesn't change.
 
 - `builder/` — TypeScript builder + demo verifier (`verify_demo.ts`). The
   builder is deterministic; it is the only writer of edition JSON. It still
-  outputs the static demo (`docs/`): `index.html`, `panel.html`,
+  outputs the static demo (`docs/`): `index.html`,
   `grade.html`, `assets/style.css`, `assets/feedback.js`.
 - `data/demo/` — **demo/mock data only.** This repo is public; the binding
   constraint is: demo data here, real data only on the private dokku app's
@@ -50,7 +50,6 @@ are new adapters; the domain doesn't change.
     subgrid` so titles/bodies/marks align across columns). B&W only,
     IM Fell English/SC + Pirata One, drop caps, dagger marks
     († deep read · ‡ brief · ❦ captured · ✳ suggested).
-  - `/panel` — QuickStudy panel: the same data, condensed topic boxes.
   - `/grade` — the grading desk: one pass, one verdict per item
     (`deep-read | skim | drop`; a Readeck save is the capture signal, so there
     is no `capture` grade and no second vote pass). Optional one-tap reason
@@ -96,7 +95,7 @@ are new adapters; the domain doesn't change.
     Yahoo RecSys '14 → Artifact: the best-evidenced cheap implicit signal)
     rides the SAME `POST /api/impressions` batched append: `{type:"dwell",
     session_id, item_id, edition_date, url, dwell_ms, opened_at, ...}`. The
-    client records the open on any edition/panel item click (sessionStorage,
+    client records the open on any edition item click (sessionStorage,
     so the pair survives full navigations and hands off to ctrl-clicked
     tabs) and settles one event per open on the tab's return — refocus
     (visibilitychange), the next page load, or pagehide (session-end cap).
@@ -159,8 +158,8 @@ decision log lives beside the edition (`editions/<date>/explore-decisions.json`,
 written by the pipeline builder) for audit.
 
 Folds: on screen each item's brief sits behind a typographic fold (a ❧ fleuron
-+ small-caps "unfold the brief", `<details>`-based, no UI chrome); the /panel
-topic boxes fold the same briefs, and /grade prints briefs inline unfolded so
++ small-caps "unfold the brief", `<details>`-based, no UI chrome); /grade
+prints briefs inline unfolded so
 a verdict never costs a tap. Items without a brief render headline-only (the
 layout's subgrid keeps marks baseline-aligned). Print always unfolds: a
 beforeprint handler opens every fold and a `::details-content` print rule
@@ -254,9 +253,15 @@ for p in / /api/edition; do
   code=$(curl -s -o /dev/null -w '%{http_code}' -A 'Mozilla/5.0' "https://morning-edition.estifanos.cc$p")
   [ "$code" = "200" ] || { echo "WRONG: $p returned $code (expected 200 — public by design)"; exit 1; }
 done
-for p in /grade /panel /admin; do
+for p in /grade /admin; do
   code=$(curl -s -o /dev/null -w '%{http_code}' -A 'Mozilla/5.0' "https://morning-edition.estifanos.cc$p")
   [ "$code" = "303" ] || { echo "GATE DOWN: $p returned $code (expected 303 -> /login)"; exit 1; }
+done
+# removed surface (card t_0714b066): the QuickStudy panel is gone — 404, not a
+# login redirect, so it reads as removed rather than private
+for p in /panel; do
+  code=$(curl -s -o /dev/null -w '%{http_code}' -A 'Mozilla/5.0' "https://morning-edition.estifanos.cc$p")
+  [ "$code" = "404" ] || { echo "GONE WRONG: $p returned $code (expected 404 — surface removed)"; exit 1; }
 done
 for p in /api/corrections /api/impressions; do
   code=$(curl -s -o /dev/null -w '%{http_code}' -A 'Mozilla/5.0' "https://morning-edition.estifanos.cc$p")

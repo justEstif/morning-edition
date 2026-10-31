@@ -102,7 +102,7 @@ export const editions: EditionStore = {
 };
 
 /** HighlightsSource port → highlights.json on the volume. Returns [] when
- *  absent — the panel simply omits the 'From your marks' study boxes. */
+ *  absent — consumers simply render no 'From your marks' study boxes. */
 export const highlights: HighlightsSource = {
   async load(): Promise<HighlightRow[]> {
     try {

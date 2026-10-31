@@ -16,7 +16,7 @@
     <div class="over">The Morning Edition — Private Door</div>
     <h1>Sign In</h1>
     <p class="under">
-      the grading desk, the study panel, and the back office sit behind this door —
+      the grading desk and the back office sit behind this door —
       the paper itself stays open at <a href="/">the front page</a>
     </p>
   </div>

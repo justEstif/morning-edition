@@ -1,5 +1,5 @@
 /* Verify the demo (public) build: masthead, marks, sections, palette, grade
-   page, panel — plus builder behavior probes (empty-section omission,
+   page — plus builder behavior probes (empty-section omission,
    brief-less rejection, demo brief quality).
 
    Port of builder/verify_demo.py. The two subprocess probes become in-process
@@ -303,52 +303,6 @@ check(
     DEMO_HOSTS,
   ),
 );
-
-// --- Card 1b: QuickStudy panel (panel.html) — same data model, second render -
-const KIND_MARKS: Record<string, string> = {
-  "deep-read": "&#8224;",
-  brief: "&#8225;",
-  captured: "&#10086;",
-};
-const panel = readFileSync(join(REPO, "docs", "panel.html"), "utf-8");
-check("panel built", panel.includes("QuickStudy panel") && panel.includes("topic-box"));
-check(
-  "panel lists every item",
-  data.items.every((i: { title: string }) => panel.includes(escTitle(i.title))),
-);
-check(
-  "panel marks every item",
-  data.items
-    .filter((i: { section: string }) => i.section !== "might-like")
-    .every((i: { kind: string }) => panel.includes(KIND_MARKS[i.kind])) &&
-    panel.includes("&#10033;"),
-);
-check(
-  "broad↔panel toggle",
-  docs.includes('href="panel.html"') && panel.includes('href="index.html"'),
-);
-check(
-  "panel hosts clean",
-  isSubset(
-    (panel.match(/href="(https?:\/\/[^/"]+)/g) ?? []).map((m: string) => m.slice(6)),
-    DEMO_HOSTS,
-  ),
-);
-const panelEmpty = readFileSync(join(outEmpty, "panel.html"), "utf-8");
-check(
-  "panel omits empty sections",
-  !panelEmpty.includes("Rust") && panelEmpty.includes("Might Like"),
-);
-
-/** html.escape(title, quote=True) — matches the builder's esc(). */
-function escTitle(title: string): string {
-  return title
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#x27;");
-}
 
 const fails = checks.filter(([, ok]) => !ok);
 console.log(`\n${checks.length - fails.length}/${checks.length} checks passed`);

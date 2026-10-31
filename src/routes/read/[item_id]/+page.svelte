@@ -452,7 +452,7 @@
 			     the owner's marks — created in Readeck, synced by the pipeline —
 			     with their notes and comments, in the house register (small caps,
 			     dagger marks, hairline rules), never a floating annotator toolbar.
-			     The panel renders only when marks exist. Anonymous readers get
+			     The marginalia renders only when marks exist. Anonymous readers get
 			     nothing here. -->
 		{#if d.isOwner && marks.length > 0}
 			<div class="marginalia">
