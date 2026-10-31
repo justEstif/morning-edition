@@ -13,7 +13,7 @@
      Roman↔italic and SC↔lowercase, never weight.
    - drop caps rationed to ≤3 per page (.dc): page lead + first two section
      leads only, never on secondary/briefs.
-   - brief micro-typography: 12.5px floor, line-height ≥1.45, +0.01em
+   - brief micro-typography: 14px floor, line-height ≥1.6, +0.01em
      tracking, ragged right. (t_95621dc5 stripped the decorative rules:
      whitespace carries separation now — only the nameplate + colophon
      double rules and the wire-note dash survive.)
@@ -62,12 +62,22 @@ a:hover {
   text-decoration: underline;
 }
 
-/* full-bleed 12-track page grid — the one grid everything hangs off */
+/* full-bleed 12-track page grid — the one grid everything hangs off.
+   Tablet cap (card t_00e2bfd7): a broadsheet is a sheet, not a banner —
+   past ~1120px the 12 tracks stretch until the t1/t2 five-track leads run
+   ~900px wide and the eye loses the column. 1120px (upper tablet landscape)
+   keeps the 7-track lead main near a 65ch measure and the 3-column agate
+   well near 40ch per column; wider viewports center the sheet. The gutter
+   clamp max drops 72→48px: 4vw reaches 48px at a 1200px viewport, so
+   behavior below the 980/640 breakpoints is untouched, and the capped
+   sheet no longer grows ever-wider margins on a 1920px display. */
 .page {
   display: grid;
   grid-template-columns: repeat(12, 1fr);
   gap: 0 32px;
-  padding: 20px clamp(20px, 4vw, 72px) 44px;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 20px clamp(20px, 4vw, 48px) 44px;
 }
 
 .masthead {
@@ -190,8 +200,8 @@ a:hover {
 }
 .lead .deck {
   font-style: italic;
-  font-size: 18px;
-  line-height: 1.55;
+  font-size: 19px;
+  line-height: 1.6;
   margin: 4px 0 0;
   max-width: 62ch;
 }
@@ -203,8 +213,8 @@ a:hover {
   margin: 6px 0;
 }
 .well p {
-  font-size: 13px;
-  line-height: 1.5;
+  font-size: 14.5px;
+  line-height: 1.6;
   margin: 0;
 }
 .well .mark {
@@ -273,15 +283,15 @@ section h2.col-h small {
   text-align: left;
 }
 .item .body {
-  font-size: 14.5px;
-  line-height: 1.6;
+  font-size: 16px;
+  line-height: 1.65;
   margin: 0;
   text-align: justify;
   hyphens: auto;
 }
 .item .body.tight {
-  font-size: 13.5px;
-  line-height: 1.5;
+  font-size: 15px;
+  line-height: 1.6;
   text-align: left;
   hyphens: auto;
 }
@@ -438,8 +448,8 @@ section h2.col-h small {
 .brief .brief-h {
   font-family: var(--sc);
   font-weight: 400;
-  font-size: 13.5px;
-  line-height: 1.3;
+  font-size: 15px;
+  line-height: 1.35;
   margin: 0;
   text-align: left;
 }
@@ -597,8 +607,8 @@ footer {
 /* Grading with context: the brief rides inline (never folded — a verdict
    shouldn't cost a tap), set small and columned under the headline */
 .grade-row .g-brief {
-  font-size: 13px;
-  line-height: 1.5;
+  font-size: 14.5px;
+  line-height: 1.6;
   margin: 7px 0 0;
   max-width: 78ch;
   text-align: justify;
@@ -706,8 +716,8 @@ footer {
 .topic-box li {
   padding: 7px 0;
   border-bottom: 1px dotted var(--rule);
-  font-size: 13.5px;
-  line-height: 1.4;
+  font-size: 14.5px;
+  line-height: 1.5;
 }
 .topic-box li:last-child {
   border-bottom: 0;
@@ -731,8 +741,8 @@ footer {
    fold-body — small, ragged right, generous leading; the label is agate
    small caps. pre-line keeps the summary's bullet lines intact. */
 .topic-box .skim-note {
-  font-size: 12.5px;
-  line-height: 1.5;
+  font-size: 13.5px;
+  line-height: 1.55;
   letter-spacing: 0.01em;
   margin: 6px 0 2px;
   text-align: left;
@@ -846,8 +856,8 @@ details.fold[open] .fold-word::before {
   content: "fold the brief";
 }
 details.fold > .fold-body {
-  font-size: 13.5px;
-  line-height: 1.55;
+  font-size: 15px;
+  line-height: 1.62;
   margin: 8px 0 0;
   text-align: justify;
   hyphens: auto;
@@ -859,8 +869,8 @@ details.fold > .fold-body {
   margin-top: 4px;
 }
 .brief details.fold > .fold-body {
-  font-size: 12.5px;
-  line-height: 1.5;
+  font-size: 14px;
+  line-height: 1.6;
   letter-spacing: 0.01em;
   text-align: left;
   margin: 6px 0 0;
@@ -872,8 +882,8 @@ details.fold > .fold-body {
   font-size: 10px;
 }
 .topic-box details.fold > .fold-body {
-  font-size: 12.5px;
-  line-height: 1.5;
+  font-size: 14px;
+  line-height: 1.6;
   margin: 6px 0 2px;
   text-align: left;
 }
@@ -1243,8 +1253,8 @@ mark.rd-mark::after {
 .more-section .more-item {
   padding: 10px 0;
   margin: 0;
-  font-size: 14.5px;
-  line-height: 1.45;
+  font-size: 15.5px;
+  line-height: 1.55;
 }
 .more-section .more-item a {
   color: var(--ink);
