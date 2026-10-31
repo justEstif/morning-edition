@@ -1,7 +1,6 @@
 <script lang="ts">
 	import '../../../app.css';
 	import NightToggle from '$lib/NightToggle.svelte';
-	import { markFor } from '$lib/domain/edition.js';
 	import { paragraphSegments, type Seg } from '$lib/domain/annotations.js';
 	import type { Reason, Verdict, VerdictPostBody } from '$lib/domain/feedback.js';
 	import { impression } from '$lib/impressions.js';
@@ -15,7 +14,6 @@
 
 	let { data }: { data: PageData } = $props();
 	const d = $derived(data);
-	const m = $derived(markFor(d.item));
 
 	/* Impressions flow from the reader too (additive, same event shape): the
 	   article element is the exposure, position 1 of its re-opened section.
@@ -159,21 +157,21 @@
 	}
 	const host = $derived(hostOf(d.item.url));
 
-	/* ---- Owner marginalia (card t_e86490c0) ----
-	   Highlights anchor to CHARACTER OFFSETS IN THE STORED EXTRACTED TEXT:
-	   the load hands the owner the paragraph→offset map (paraStarts), the
-	   selection is mapped into those offsets locally, and the server slices
-	   the quote out of the stored text at write time. The render-time drift
-   pass already ran server-side (verifyAnchor): only anchor-verified marks
-   render in the body — a drifted mark appears in the margin flagged,
-   never silently mis-highlighted. Anonymous readers get none of this:
-   no marks, no offsets, no controls (public read writes nothing). */
+	/* ---- Owner marginalia (card t_e86490c0; capture retired t_243a2248) ----
+	   Marks anchor to CHARACTER OFFSETS IN THE STORED EXTRACTED TEXT: the load
+	   hands the owner the paragraph→offset map (paraStarts), and only
+	   anchor-verified marks render in the body — a drifted mark appears in the
+	   margin flagged, never silently mis-highlighted. Marks are CREATED in
+	   Readeck and synced by the pipeline; the paper's inline capture
+	   (selection → mark) is retired — with unfold + the in-paper reader +
+	   direct-to-original links, a separate capture step was redundant. The
+	   margin stays a READING surface: existing marks with their notes and
+	   comments. Anonymous readers get none of this: no marks, no offsets, no
+	   controls (public read writes nothing). */
 	type OwnerMark = PageData['marginalia'][number];
 
 	let marks = $state<OwnerMark[]>([]);
-	let pendingSel = $state<{ start: number; end: number; excerpt: string } | null>(null);
 	let markError = $state('');
-	let savingMark = $state(false);
 	let composing = $state<{ kind: 'note' | 'comment'; markId: string } | null>(null);
 	let composeText = $state('');
 
@@ -181,7 +179,6 @@
 		// Re-hydrate from the owner payload on every load (client-side nav
 		// between articles reuses this component instance).
 		marks = d.marginalia;
-		pendingSel = null;
 		composing = null;
 	});
 
@@ -195,92 +192,9 @@
 		return paragraphSegments({ text, start, end: start + text.length }, verifiedMarks);
 	}
 
-	/* Selection → stored-text offsets. Both boundaries must sit inside a
-	   .reader-body paragraph (the digest lede is NOT stored text — marks
-	   there are impossible by construction). */
-	function textOffsetInPara(p: HTMLElement, node: Node, offset: number): number | null {
-		if (node === p) return offset === 0 ? 0 : null;
-		const walker = document.createTreeWalker(p, NodeFilter.SHOW_TEXT);
-		let acc = 0;
-		while (walker.nextNode()) {
-			const n = walker.currentNode;
-			if (n === node) return acc + offset;
-			acc += n.textContent?.length ?? 0;
-		}
-		return null;
-	}
-
-	function paraOf(node: Node): { el: HTMLElement; idx: number } | null {
-		const el = node.nodeType === Node.TEXT_NODE ? node.parentElement : (node as HTMLElement);
-		const p = el?.closest?.('p[data-p]');
-		if (!p || !p.closest('.reader-body')) return null;
-		return { el: p as HTMLElement, idx: Number((p as HTMLElement).dataset.p) };
-	}
-
-	function captureSelection() {
-		if (!d.isOwner || !d.paraStarts) {
-			pendingSel = null;
-			return;
-		}
-		const sel = document.getSelection();
-		if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
-			pendingSel = null;
-			return;
-		}
-		const range = sel.getRangeAt(0);
-		const a = paraOf(range.startContainer);
-		const b = paraOf(range.endContainer);
-		const oa = a ? textOffsetInPara(a.el, range.startContainer, range.startOffset) : null;
-		const ob = b ? textOffsetInPara(b.el, range.endContainer, range.endOffset) : null;
-		const sa = a ? d.paraStarts[a.idx] : undefined;
-		const sb = b ? d.paraStarts[b.idx] : undefined;
-		if (oa === null || ob === null || sa === undefined || sb === undefined) {
-			pendingSel = null;
-			return;
-		}
-		let start = sa + oa;
-		let end = sb + ob;
-		if (start > end) [start, end] = [end, start];
-		if (end - start < 3) {
-			pendingSel = null; // a stray click is not a passage
-			return;
-		}
-		pendingSel = {
-			start,
-			end,
-			excerpt: sel.toString().replace(/\s+/g, ' ').trim().slice(0, 160)
-		};
-	}
-
-	async function saveMark() {
-		if (!pendingSel || savingMark) return;
-		savingMark = true;
-		markError = '';
-		try {
-			const r = await fetch('/api/annotations', {
-				method: 'POST',
-				headers: { 'content-type': 'application/json' },
-				body: JSON.stringify({
-					type: 'highlight',
-					item_id: d.item.id,
-					edition_date: d.editionDate,
-					start: pendingSel.start,
-					end: pendingSel.end
-				})
-			});
-			if (!r.ok) throw new Error((await r.json()).error || String(r.status));
-			const res = await r.json();
-			marks = [...marks, { ...res.row, notes: [], comments: [], anchor: { ok: true } }];
-			pendingSel = null;
-			document.getSelection()?.removeAllRanges();
-		} catch (err) {
-			markError =
-				'the mark never reached the desk — ' +
-				(err instanceof Error ? err.message : String(err));
-		} finally {
-			savingMark = false;
-		}
-	}
+	/* Selection → stored-text offsets and the selection→mark capture they
+	   served are RETIRED (t_243a2248): marks are created in Readeck and synced
+	   by the pipeline; the paper only displays and annotates them. */
 
 	function startCompose(kind: 'note' | 'comment', markId: string) {
 		composing = { kind, markId };
@@ -369,8 +283,6 @@
 	}
 </script>
 
-<svelte:document onselectionchange={captureSelection} />
-
 <svelte:head>
 	<title>{d.item.title} — The Morning Edition — {d.dateLong}</title>
 	<meta name="description" content={d.item.brief ?? d.item.title} />
@@ -401,7 +313,6 @@
 			use:impression={d.isOwner ? impressionInfo() : null}
 			data-item-id={d.item.id}
 		>
-			<p class="kicker"><b>{m.mark} {m.label}</b> · via {d.item.source}{#if d.item.captured_at} · captured {d.item.captured_at.slice(0, 10)}{/if}</p>
 			<h1 class="display">{d.item.title}</h1>
 			{#if d.preRead}
 				<!-- The depth ladder's pre-read tier (card t_2f96c207, spike 002
@@ -527,35 +438,25 @@
 			<div class="provenance">
 				<div class="cap">Provenance</div>
 				<dl>
-					<dt>Source</dt><dd>via {d.item.source} · {host}</dd>
+					<dt>Source</dt><dd>{host}</dd>
 					{#if digestMode}
 						<dt>At the source</dt>
 						<dd><a href={d.item.url} onclick={() => trackOutbound(d.item.url)}>{host} ↗</a></dd>
 					{/if}
 					<dt>Angle</dt><dd>{d.sectionTitle}</dd>
-					{#if d.item.captured_at}<dt>Captured</dt><dd>{d.item.captured_at.slice(0, 10)}</dd>{/if}
 					<dt>First showing</dt><dd>edition {d.editionDate}</dd>
 				</dl>
 			</div>
 
-			<!-- Owner marginalia (card t_e86490c0): the owner's private marks,
-		     notes and longer comments — set in the house register (small caps,
-		     dagger marks, hairline rules), never a floating annotator toolbar.
-		     Anonymous readers get nothing here. -->
-		{#if d.isOwner}
+			<!-- Owner marginalia (card t_e86490c0; capture retired t_243a2248):
+			     the owner's marks — created in Readeck, synced by the pipeline —
+			     with their notes and comments, in the house register (small caps,
+			     dagger marks, hairline rules), never a floating annotator toolbar.
+			     The panel renders only when marks exist. Anonymous readers get
+			     nothing here. -->
+		{#if d.isOwner && marks.length > 0}
 			<div class="marginalia">
 				<div class="cap">Marginalia</div>
-				{#if pendingSel}
-					<div class="mark-pending">
-						<p class="mp-quote">†&nbsp;{pendingSel.excerpt}</p>
-						<div class="mk-actions">
-							<button type="button" class="mk-btn" onclick={saveMark} disabled={savingMark}>
-								{savingMark ? 'setting…' : 'mark it'}
-							</button>
-							<button type="button" class="mk-btn" onclick={() => (pendingSel = null)}>dismiss</button>
-						</div>
-					</div>
-				{/if}
 				{#each marks as mk (mk.id)}
 					<div class="mark-entry" class:drifted={!mk.anchor.ok}>
 						{#if mk.anchor.ok}
@@ -584,9 +485,6 @@
 						{/if}
 					</div>
 				{/each}
-				{#if marks.length === 0 && !pendingSel}
-					<p class="mk-empty">select any passage below to set a private mark.</p>
-				{/if}
 				{#if markError}<span class="vote-note">{markError}</span>{/if}
 			</div>
 		{/if}

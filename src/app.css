@@ -131,38 +131,6 @@ a:hover {
   color: var(--ink);
 }
 
-/* the index strip — "In This Edition" agate line under the nameplate
-   (research R5): pure type + fleurons, and the page's real nav outline */
-.index {
-  grid-column: 1 / -1;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 2px 14px;
-  padding: 9px 0 20px;
-  font-family: var(--sc);
-  font-size: 12.5px;
-}
-.index .idx-cap {
-  font-size: 11px;
-  letter-spacing: 3px;
-  text-transform: uppercase;
-  color: var(--mid);
-  margin-right: 8px;
-}
-.index .idx-sec {
-  letter-spacing: 1px;
-}
-.index .idx-lead {
-  font-family: var(--serif);
-  font-style: italic;
-  font-size: 12px;
-  color: var(--mid);
-}
-.index .fl {
-  color: var(--rule);
-}
-
 /* ---- The page lead: the only item allowed to dominate ----
    Subgrid on the page's 12 tracks — main story 7 tracks, two side wells 2+3.
    Kicker → headline → deck in the ~36→18→14 layering ratio (research R3). */
@@ -216,18 +184,6 @@ a:hover {
   font-size: 14.5px;
   line-height: 1.6;
   margin: 0;
-}
-.well .mark {
-  font-family: var(--sc);
-  font-size: 10.5px;
-  letter-spacing: 2px;
-  color: var(--mid);
-  display: block;
-  margin-top: 6px;
-}
-.well .mark b {
-  color: var(--ink);
-  font-weight: 400;
 }
 
 /* ---- Sections: tiered broadsheet layout, not aligned rows ----
@@ -294,19 +250,6 @@ section h2.col-h small {
   line-height: 1.6;
   text-align: left;
   hyphens: auto;
-}
-.markrow {
-  margin-top: 8px;
-}
-.mark {
-  font-family: var(--sc);
-  letter-spacing: 2px;
-  font-size: 11px;
-  color: var(--mid);
-}
-.mark b {
-  color: var(--ink);
-  font-weight: 400;
 }
 
 /* t0 — lead-wrap: the lead story runs tall on the left while secondaries
@@ -453,17 +396,6 @@ section h2.col-h small {
   margin: 0;
   text-align: left;
 }
-.brief .brief-mark {
-  font-family: var(--sc);
-  font-size: 10.5px;
-  letter-spacing: 1.5px;
-  color: var(--mid);
-  margin-top: 4px;
-}
-.brief .brief-mark b {
-  color: var(--ink);
-  font-weight: 400;
-}
 
 /* rationed drop caps (.dc): page-lead deck + first two section leads ONLY,
    3-line incunabula initials in Pirata One */
@@ -488,13 +420,6 @@ footer {
 }
 
 /* ---- Feedback chrome: screen-only, typographic, part of the paper ---- */
-.markrow {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 8px;
-  flex-wrap: wrap;
-}
 .vote {
   font-family: var(--sc);
   font-size: 11px;
@@ -941,16 +866,6 @@ details.fold > .fold-body {
 .reader-main {
   min-width: 0;
 }
-.reader-main .kicker {
-  font-family: var(--sc);
-  font-size: 11px;
-  letter-spacing: 2px;
-  color: var(--mid);
-}
-.reader-main .kicker b {
-  font-weight: 400;
-  color: var(--ink);
-}
 .reader-main h1.display {
   font-family: "Pirata One", serif;
   font-weight: 400;
@@ -1171,12 +1086,6 @@ mark.rd-mark::after {
   color: var(--mid);
   margin-bottom: 6px;
 }
-.mark-pending {
-  border-left: 1px solid var(--rule);
-  padding-left: 10px;
-  margin-bottom: 14px;
-}
-.mp-quote,
 .mk-quote {
   margin: 0 0 4px;
   font-style: italic;
@@ -1241,11 +1150,6 @@ mark.rd-mark::after {
   outline: none;
   border-bottom-color: var(--mid);
 }
-.mk-empty {
-  margin: 0;
-  font-style: italic;
-  color: var(--mid);
-}
 .more-section {
   grid-column: 1 / -1;
   margin-top: 34px;
@@ -1286,10 +1190,6 @@ mark.rd-mark::after {
   }
   .lead h2.display {
     font-size: 34px;
-  }
-  .index {
-    gap: 2px 10px;
-    font-size: 12px;
   }
   .dc::first-letter {
     font-size: 32px;
@@ -1415,8 +1315,7 @@ mark.rd-mark::after {
   /* The owner's desk work stays off paper too (card t_e86490c0): marginalia
      is screen-only; printed marks print as plain text (hairline + dagger
      dropped) so a shared printout never carries private notes. */
-  .marginalia,
-  .mark-pending {
+  .marginalia {
     display: none !important;
   }
   mark.rd-mark {

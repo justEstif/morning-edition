@@ -1,7 +1,6 @@
 <script lang="ts">
 	import '../app.css';
 	import NightToggle from '$lib/NightToggle.svelte';
-	import { markFor } from '$lib/domain/edition.js';
 	import type { EditionItem } from '$lib/domain/edition.js';
 	import { impression } from '$lib/impressions.js';
 	import { dwellOpen } from '$lib/dwell.js';
@@ -107,31 +106,12 @@
 	</div>
 	<div class="rail">
 		<span>{ed.dateLong}</span><span class="fl">❦</span>
-		<span>† deep read ‡ brief ❦ captured ✳&#xFE0E; suggested</span><span class="fl">❦</span>
 		<a href="/panel">QuickStudy panel</a><span class="fl">·</span>
 		<a href="/grade">Grade this edition</a>
 		<span class="fl">❦</span>
 		<NightToggle />
 		{#if data.isDemo}<span class="fl">❦</span><span>demo edition — mock data only</span>{/if}
 	</div>
-
-	{#if ed.sections.length > 0}
-		<!-- The index strip: a real broadsheet needs an "In This Edition" agate
-		     line under the nameplate (research R5) — at ~100 items it is what
-		     makes the page navigable, and it doubles as the keyboard/SR outline. -->
-		<nav class="index" aria-label="In this edition">
-			<span class="idx-cap">In This Edition</span>
-			{#each ed.sections as section (section.key)}
-				<span class="idx-entry">
-					<a href="#sec-{section.key}">
-						<span class="idx-sec">{section.title}</span>
-						<span class="idx-lead">— {section.sectionLead?.title ?? section.items[0]?.title}</span>
-					</a>
-					<span class="fl">❦</span>
-				</span>
-			{/each}
-		</nav>
-	{/if}
 
 	{#if ed.lead}
 		{@const lead = ed.lead}
@@ -141,7 +121,6 @@
 		     with the page's rationed drop cap. -->
 		<div class="lead">
 			<div class="lead-main" use:impression={impressionInfo(lead, 'captured', 1)}>
-				<div class="cap">Captured — you saved this yesterday, from {lead.source}</div>
 				<h2 class="display"><a href={itemLink(lead)} onclick={() => trackClick(lead)}>{lead.title}</a></h2>
 				{#if lead.brief}
 					<p class="deck dc">{lead.brief}</p>
@@ -152,15 +131,17 @@
 			{#if ed.leadSide}
 				{@const leadSide = ed.leadSide}
 				<div class="lead-side1 well" use:impression={impressionInfo(leadSide, 'captured', 2)}>
-					<div class="cap">Also captured</div>
 					<h3><a href={itemLink(leadSide)} onclick={() => trackClick(leadSide)}>{leadSide.title}</a></h3>
 					<p>{leadSide.brief || leadSide.title}</p>
-					<span class="mark"><b>Captured</b> · your save</span>
 				</div>
 			{/if}
 			<div class="lead-side2 well">
 				<div class="cap">Today at a glance</div>
-				<p>{ed.glance}</p>
+				<!-- t_243a2248: the builder's glance string counted the ladder
+				     taxonomy ("deep reads", "briefs", "captures pinned") — exactly
+				     the jargon this card strips. The well now states plain edition
+				     facts only, computed from the shaped edition. -->
+				<p>{ed.itemCount} stories across {ed.sections.length} sections.</p>
 			</div>
 		</div>
 	{/if}
@@ -177,7 +158,6 @@
 			<div class="cols t{si % 3} {section.sectionLead ? '' : 'no-lead'}">
 				{#if section.sectionLead}
 					{@const item = section.sectionLead}
-					{@const m = markFor(item)}
 					<article class="item tier-lead" use:impression={impressionInfo(item, section.key, 1)}>
 						<h3><a href={itemLink(item)} onclick={() => trackClick(item)}>{item.title}</a></h3>
 						{#if item.brief}
@@ -185,22 +165,23 @@
 							     the page lead above + the first two section leads. -->
 							<p class="body {si < 2 ? 'dc' : ''}">{item.brief}</p>
 						{/if}
-						<div class="markrow">
-							<span class="mark"><b>{m.mark} {m.label}</b>{#if item.captured_at} · captured {item.captured_at.slice(0, 10)}{/if}</span>
-						</div>
 					</article>
 				{/if}
 				{#each section.secondary as item, i (item.id)}
-					{@const m = markFor(item)}
 					{@const pos = 2 + i}
 					<article class="item tier-secondary sec{i}" use:impression={impressionInfo(item, section.key, pos)}>
 						<h4><a href={itemLink(item)} onclick={() => trackClick(item)}>{item.title}</a></h4>
 						{#if item.brief}
-							<p class="body tight">{item.brief}</p>
+							<!-- The unified reading model (t_243a2248): every item's
+							     first move is unfolding in place — the brief waits
+							     behind the same fold the briefs well uses, no ladder
+							     labels, no taxonomy. The reader link stays the only
+							     other destination. -->
+							<details class="fold">
+								<summary><span class="fold-word"></span></summary>
+								<p class="fold-body">{item.brief}</p>
+							</details>
 						{/if}
-						<div class="markrow">
-							<span class="mark"><b>{m.mark} {m.label}</b>{#if item.captured_at} · captured {item.captured_at.slice(0, 10)}{/if}</span>
-						</div>
 					</article>
 				{/each}
 				{#if section.briefs.length > 0}
@@ -214,10 +195,9 @@
 					     so a sparse well narrows instead of painting a dead band
 					     across the page (t_4c629db1). -->
 					<div class="briefs n{Math.min(section.briefs.length, 3)}">
-						<div class="briefs-cap">‡ Briefs <span class="briefs-count">{section.briefs.length}</span></div>
+						<div class="briefs-cap">Briefs <span class="briefs-count">{section.briefs.length}</span></div>
 						<div class="briefs-cols n{Math.min(section.briefs.length, 3)}">
 							{#each section.briefs as item, i (item.id)}
-								{@const m = markFor(item)}
 								{@const pos = 2 + section.secondary.length + i}
 								<article class="brief" use:impression={impressionInfo(item, section.key, pos)}>
 									<h4 class="brief-h"><a href={itemLink(item)} onclick={() => trackClick(item)}>{item.title}</a></h4>
@@ -227,7 +207,6 @@
 											<p class="fold-body">{item.brief}</p>
 										</details>
 									{/if}
-									<div class="brief-mark"><b>{m.mark} {m.label}</b> · via {item.source}</div>
 								</article>
 							{/each}
 						</div>
@@ -242,8 +221,6 @@
 		<span class="fl">❦</span>
 		<a class="grade-link" href="/grade">Grade this edition →</a>
 		{#if data.isAdmin}<span class="fl">❦</span><a class="grade-link" href="/admin">Admin</a>{/if}
-		<span class="fl">❦</span>
-		<span class="vote-note">clicks post to the private ledger on this server · editorial calls live at the grading desk</span>
 	</div>
 
 	<footer>— {ed.itemCount} items · edition {ed.date} · compiled by the 7 AM pipeline · read by a human —</footer>
