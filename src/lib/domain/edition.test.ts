@@ -243,7 +243,6 @@ describe("shapeEdition", () => {
     expect(shaped.sections.map((s) => s.key)).toEqual(["might-like"]); // both captures consumed by lead + side well
     expect(shaped.itemCount).toBe(3);
     expect(shaped.dateLong).toBe(longDate("2026-10-25"));
-    expect(shaped.glance).toContain("1 captures pinned");
   });
 
   it("partitions each section by tier (sectionLead/secondary/briefs)", () => {

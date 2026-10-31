@@ -117,7 +117,6 @@ export interface ShapedEdition {
   dateLong: string;
   lead: EditionItem | null;
   leadSide: EditionItem | null;
-  glance: string;
   sections: ShapedSection[];
   itemCount: number;
 }
@@ -228,7 +227,7 @@ export function longDate(dateStr: string): string {
 
 /**
  * Shape validated edition JSON for rendering.
- * Returns { date, dateLong, lead, leadSide, glance, sections, itemCount }.
+ * Returns { date, dateLong, lead, leadSide, sections, itemCount }.
  * lead = the edition-wide page lead (first tier-lead in SECTION_ORDER —
  * with the builder's assignTiers this is the first capture); leadSide =
  * second capture ("also captured" well); sections = non-empty sections in
@@ -261,19 +260,9 @@ export function shapeEdition(raw: RawEdition | null): ShapedEdition {
       briefs: its.filter((i) => i.tier === "brief"),
     };
   }).filter((s) => s.items.length > 0);
-  const briefs = items.filter((i) => i.kind === "brief").length;
-  const deepReads = items.filter((i) => i.kind === "deep-read").length;
-  const captureCount = items.filter((i) => i.kind === "captured").length;
-  const suggestions = bySection["might-like"].length;
   return {
     date: raw?.edition_date || "",
     dateLong: longDate(raw?.edition_date || "1970-01-01"),
-    glance:
-      `${sections.length} sections, ${deepReads} deep reads, ${briefs} briefs, ` +
-      `${captureCount} captures pinned` +
-      (suggestions
-        ? `, ${suggestions} suggestion${suggestions === 1 ? "" : "s"} from outside your usual topics awaiting your verdict.`
-        : "."),
     sections,
     itemCount: items.length,
     lead: pageLead,
