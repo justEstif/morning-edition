@@ -17,12 +17,12 @@
 	   batches (card t_41df1f78). Existing state stays server-side, any device. */
 	const sessionId = crypto.randomUUID();
 
-	/* Impression capture: lead + lead-side well are captured #1/#2, so the
-	   items rendered in the Captured section continue at #3. explore_flag /
-	   propensity ride along when the builder attached them (research R3,
-	   shadow-mode) — the why-shown log; nothing visual changes. NOTE: the
-	   telemetry field `tier` predates the broadsheet tier and still carries
-	   the item KIND — a payload contract, unchanged on purpose. */
+	/* Impression capture: every rendered item reports its global position in
+	   the ranked list below. explore_flag / propensity ride along when the
+	   builder attached them (research R3, shadow-mode) — the why-shown log;
+	   nothing visual changes. NOTE: the telemetry field `tier` predates the
+	   broadsheet tier and still carries the item KIND — a payload contract,
+	   unchanged on purpose. */
 	function impressionInfo(item: EditionItem, sectionKey: string, position: number) {
 		return {
 			item_id: item.id,
@@ -89,6 +89,25 @@
 			// click tracking must never break reading
 		}
 	}
+
+	/* Ranked order (card t_2f627733): the broadsheet tier GRID is retired on
+	   this surface — the paper reads like a blog. The list is the builder's
+	   rank order made visible: page lead, its side well, then each section's
+	   items in the section's priority (= tier) order. Position stays the
+	   global list index, so the impression payload's shape is untouched. The
+	   domain tier field is ranking data only here — never a visual class. */
+	const ranked = $derived.by(() => {
+		let pos = 0;
+		const top: EditionItem[] = [];
+		if (ed.lead) top.push(ed.lead);
+		if (ed.leadSide) top.push(ed.leadSide);
+		const topItems = top.map((item) => ({ item, pos: ++pos }));
+		const sections = ed.sections.map((s) => ({
+			...s,
+			rankedItems: s.items.map((item) => ({ item, pos: ++pos }))
+		}));
+		return { topItems, sections };
+	});
 </script>
 
 <svelte:head>
@@ -98,7 +117,7 @@
 
 <svelte:window onbeforeprint={openFolds} onafterprint={restoreFolds} />
 
-<div class="page">
+<div class="page sheet">
 	<div class="masthead">
 		<div class="over">Your Personal Morning Edition</div>
 		<h1>The Morning Edition</h1>
@@ -113,70 +132,35 @@
 		{#if data.isDemo}<span class="fl">❦</span><span>demo edition — mock data only</span>{/if}
 	</div>
 
-	{#if ed.lead}
-		{@const lead = ed.lead}
-		<!-- The page lead: the ONLY item allowed to dominate. Pirata One display
-		     headline (blackletter = display-only, research Q4), kicker →
-		     headline → deck in the ~36→18→14 layering ratio, brief opened wide
-		     with the page's rationed drop cap. -->
-		<div class="lead">
-			<div class="lead-main" use:impression={impressionInfo(lead, 'captured', 1)}>
-				<h2 class="display"><a href={itemLink(lead)} onclick={() => trackClick(lead)}>{lead.title}</a></h2>
-				{#if lead.brief}
-					<p class="deck dc">{lead.brief}</p>
-				{:else}
-					<p class="deck">{lead.title}</p>
-				{/if}
-			</div>
-			{#if ed.leadSide}
-				{@const leadSide = ed.leadSide}
-				<div class="lead-side1 well" use:impression={impressionInfo(leadSide, 'captured', 2)}>
-					<h3><a href={itemLink(leadSide)} onclick={() => trackClick(leadSide)}>{leadSide.title}</a></h3>
-					<p>{leadSide.brief || leadSide.title}</p>
-				</div>
-			{/if}
-			<div class="lead-side2 well">
-				<div class="cap">Today at a glance</div>
-				<!-- t_243a2248: the builder's glance string counted the ladder
-				     taxonomy ("deep reads", "briefs", "captures pinned") — exactly
-				     the jargon this card strips. The well now states plain edition
-				     facts only, computed from the shaped edition. -->
-				<p>{ed.itemCount} stories across {ed.sections.length} sections.</p>
-			</div>
-		</div>
-	{/if}
+	<!-- Plain edition facts (t_243a2248 register), one centered line —
+	     no well, no sidecar. -->
+	<p class="glance">{ed.itemCount} stories across {ed.sections.length} sections.</p>
 
-	{#each ed.sections as section, si (section.key)}
-		<section id="sec-{section.key}">
-			<h2 class="col-h">{section.title} <small>{section.items.length} item{section.items.length === 1 ? '' : 's'}</small></h2>
-			<!-- Systematic chaos (research R10): the layout template rotates
-			     deterministically per section — same tier structure, three
-			     different grids, so no two sections sit alike and no rebuild
-			     is random. Columns deliberately do NOT share baselines.
-			     no-lead: the Captured section's display stories live in the
-			     page-lead block above, so its grid must fill without one. -->
-			<div class="cols t{si % 3} {section.sectionLead ? '' : 'no-lead'}">
-				{#if section.sectionLead}
-					{@const item = section.sectionLead}
-					<article class="item tier-lead" use:impression={impressionInfo(item, section.key, 1)}>
+	<div class="stream">
+		{#each ranked.topItems as entry (entry.item.id)}
+			{@const item = entry.item}
+			<article class="item" use:impression={impressionInfo(item, item.section, entry.pos)}>
+				<h3><a href={itemLink(item)} onclick={() => trackClick(item)}>{item.title}</a></h3>
+				{#if item.brief}
+					<!-- The unified reading model (t_243a2248), now the ONLY
+					     register on this page: every item unfolds in place —
+					     the page lead included. No ladder, no labels, no
+					     display hierarchy; the fold is the continuation. -->
+					<details class="fold">
+						<summary><span class="fold-word"></span></summary>
+						<p class="fold-body">{item.brief}</p>
+					</details>
+				{/if}
+			</article>
+		{/each}
+		{#each ranked.sections as section (section.key)}
+			<section id="sec-{section.key}">
+				<h2 class="col-h">{section.title} <small>{section.items.length} item{section.items.length === 1 ? '' : 's'}</small></h2>
+				{#each section.rankedItems as entry (entry.item.id)}
+					{@const item = entry.item}
+					<article class="item" use:impression={impressionInfo(item, section.key, entry.pos)}>
 						<h3><a href={itemLink(item)} onclick={() => trackClick(item)}>{item.title}</a></h3>
 						{#if item.brief}
-							<!-- Drop caps are rationed to ≤3 per page (research R4):
-							     the page lead above + the first two section leads. -->
-							<p class="body {si < 2 ? 'dc' : ''}">{item.brief}</p>
-						{/if}
-					</article>
-				{/if}
-				{#each section.secondary as item, i (item.id)}
-					{@const pos = 2 + i}
-					<article class="item tier-secondary sec{i}" use:impression={impressionInfo(item, section.key, pos)}>
-						<h4><a href={itemLink(item)} onclick={() => trackClick(item)}>{item.title}</a></h4>
-						{#if item.brief}
-							<!-- The unified reading model (t_243a2248): every item's
-							     first move is unfolding in place — the brief waits
-							     behind the same fold the briefs well uses, no ladder
-							     labels, no taxonomy. The reader link stays the only
-							     other destination. -->
 							<details class="fold">
 								<summary><span class="fold-word"></span></summary>
 								<p class="fold-body">{item.brief}</p>
@@ -184,37 +168,9 @@
 						{/if}
 					</article>
 				{/each}
-				{#if section.briefs.length > 0}
-					<!-- The briefs well: agate-density, anchored home every day
-					     (research R6). Hairline rule above each brief, column rules
-					     between the columns, ragged right, no drop caps. The
-					     typographic folds live here — a jumpline is only honest when
-					     a story really continues across a break, so none are faked:
-					     the fold IS the continuation (research amendment #3).
-					     The well's brief count rides the class (n1/n2, capped at 3)
-					     so a sparse well narrows instead of painting a dead band
-					     across the page (t_4c629db1). -->
-					<div class="briefs n{Math.min(section.briefs.length, 3)}">
-						<div class="briefs-cap">Briefs <span class="briefs-count">{section.briefs.length}</span></div>
-						<div class="briefs-cols n{Math.min(section.briefs.length, 3)}">
-							{#each section.briefs as item, i (item.id)}
-								{@const pos = 2 + section.secondary.length + i}
-								<article class="brief" use:impression={impressionInfo(item, section.key, pos)}>
-									<h4 class="brief-h"><a href={itemLink(item)} onclick={() => trackClick(item)}>{item.title}</a></h4>
-									{#if item.brief}
-										<details class="fold">
-											<summary><span class="fold-word"></span></summary>
-											<p class="fold-body">{item.brief}</p>
-										</details>
-									{/if}
-								</article>
-							{/each}
-						</div>
-					</div>
-				{/if}
-			</div>
-		</section>
-	{/each}
+			</section>
+		{/each}
+	</div>
 
 	<div class="toolbar screen-only">
 		<a class="grade-link" href="/panel">QuickStudy panel</a>
