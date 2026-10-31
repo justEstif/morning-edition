@@ -570,18 +570,6 @@ details.fold > .fold-body {
   line-height: 1.65;
 }
 
-/* Panel variant: condensed box, smaller set text, no drop cap */
-.topic-box details.fold > summary {
-  margin-top: 4px;
-  font-size: 10px;
-}
-.topic-box details.fold > .fold-body {
-  font-size: 14px;
-  line-height: 1.6;
-  margin: 6px 0 2px;
-  text-align: left;
-}
-
 /* ---- 980px: /grade drops to 6 tracks; the front page is a single
    column already, so there is nothing left to collapse (t_2f627733) ---- */
 @media (max-width: 980px) {
