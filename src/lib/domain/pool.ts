@@ -12,7 +12,7 @@
 
 /** Which source produced the candidate. Same vocabulary as the ledger's
  *  `source` envelope field. */
-export type PoolSource = "miniflux" | "readeck" | "hn";
+export type PoolSource = "miniflux" | "readeck" | "hn" | "x" | "youtube";
 
 /** Lifecycle state. `fresh` = recently fetched; `aged` = within TTL but past
  *  a day (build may down-rank, never drop); `expired` = past TTL, forced
@@ -51,6 +51,8 @@ export const TTL_HOURS: Record<PoolSource, number> = {
   hn: 96, // news-ish: 4 days
   miniflux: 96, // feed items: same news horizon
   readeck: 336, // deliberate saves: essays/long reads, 14 days
+  x: 72, // X posts (t_85621775): conversation moves fast — 3 days
+  youtube: 96, // channel uploads (t_9d9fffeb): same news horizon as feed items
 };
 
 /** A candidate counts as "aged" (down-rankable, still eligible) after this
@@ -113,4 +115,62 @@ export function markUsed(candidates: PoolCandidate[], editionDate: string): void
     c.times_presented += 1;
     c.last_presented = editionDate;
   }
+}
+
+/* ---------- per-channel daily cap (card t_9d9fffeb) ---------- */
+
+/** Max rows ONE YouTube channel may add to the pool per fetch day. The
+ *  channel-feed fetcher sees the channel's latest ~15 uploads; without this
+ *  a prolific channel floods the candidate pool and crowds articles out of
+ *  the paper. Applies to rows FETCHED TODAY (UTC date of fetched_at) only —
+ *  rows carried over from earlier days pass untouched, and overflow is
+ *  dropped loudly by the caller (it re-arrives on the next fetch if the
+ *  channel's RSS still lists it). */
+export const YT_PER_CHANNEL_DAILY_CAP = 3;
+
+/** Minimal view the cap needs (the adapter projects PoolRow onto this —
+ *  channel identity and the recency tiebreaker live in the payload). */
+export interface ChannelCapped {
+  candidate_id: string;
+  source: PoolSource;
+  /** ISO-8601 fetch time; its UTC date is the cap's day bucket. */
+  fetched_at: string;
+  /** Stable channel identity (channel_id preferred over display name). */
+  channel: string;
+  /** ISO publish date — newest uploads win the cap slots. */
+  published?: string;
+}
+
+/** Enforce the per-channel per-day cap over merged pool rows. Pure: returns
+ *  the kept rows (in input order) plus an explicit dropped manifest so the
+ *  adapter can log every exclusion — never silent. */
+export function applyChannelDailyCap<T extends ChannelCapped>(
+  rows: T[],
+  nowIso: string,
+  cap: number = YT_PER_CHANNEL_DAILY_CAP,
+): { kept: T[]; dropped: Array<{ candidate_id: string; channel: string }> } {
+  const day = nowIso.slice(0, 10);
+  const kept: T[] = [];
+  const dropped: Array<{ candidate_id: string; channel: string }> = [];
+  const perChannel = new Map<string, T[]>();
+  for (const r of rows) {
+    if (r.source !== "youtube" || r.fetched_at.slice(0, 10) !== day) {
+      kept.push(r);
+      continue;
+    }
+    const list = perChannel.get(r.channel) ?? [];
+    list.push(r);
+    perChannel.set(r.channel, list);
+  }
+  for (const [channel, list] of perChannel) {
+    list.sort((a, b) => {
+      const pa = a.published ?? "";
+      const pb = b.published ?? "";
+      if (pa !== pb) return pa < pb ? 1 : -1; // newest uploads first
+      return a.candidate_id < b.candidate_id ? -1 : 1; // stable tiebreak
+    });
+    for (const r of list.slice(0, cap)) kept.push(r);
+    for (const r of list.slice(cap)) dropped.push({ candidate_id: r.candidate_id, channel });
+  }
+  return { kept, dropped };
 }

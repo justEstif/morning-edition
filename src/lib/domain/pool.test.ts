@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyChannelDailyCap,
   effectiveState,
   isEligible,
   markUsed,
   mergeIntoPool,
   TTL_HOURS,
+  YT_PER_CHANNEL_DAILY_CAP,
   type PoolCandidate,
 } from "./pool.js";
 
@@ -47,6 +49,11 @@ describe("effectiveState — aging policy", () => {
     const rd = candidate({ source: "readeck", candidate_id: "readeck-1" });
     const pastHnTtl = Date.parse(rd.fetched_at) + (TTL_HOURS.hn + 1) * HOUR;
     expect(effectiveState(rd, pastHnTtl)).toBe("aged");
+    // X posts (t_85621775) age out at 72h — inside hn's TTL, past their own
+    const xp = candidate({ source: "x", candidate_id: "x-1" });
+    const pastXttl = Date.parse(xp.fetched_at) + (TTL_HOURS.x + 1) * HOUR;
+    expect(effectiveState(xp, pastXttl)).toBe("expired");
+    expect(effectiveState(xp, Date.parse(xp.fetched_at) + (TTL_HOURS.x - 1) * HOUR)).toBe("aged");
   });
 
   it("used is sticky regardless of age", () => {
@@ -128,5 +135,90 @@ describe("markUsed", () => {
     expect(rows.every((r) => r.state === "used")).toBe(true);
     expect(rows[1].times_presented).toBe(1);
     expect(rows[1].last_presented).toBe("2026-10-25");
+  });
+});
+
+describe("applyChannelDailyCap — per-channel per-day pool cap (t_9d9fffeb)", () => {
+  function yt(id: string, over: Partial<Parameters<typeof applyChannelDailyCap>[0][number]> = {}) {
+    return {
+      candidate_id: `youtube-${id}`,
+      source: "youtube" as const,
+      fetched_at: "2026-10-31T22:00:00.000Z",
+      channel: "UC-channel",
+      published: "2026-10-30T00:00:00Z",
+      ...over,
+    };
+  }
+
+  it("caps rows fetched today per channel, keeping the newest uploads", () => {
+    const rows = [
+      yt("a", { published: "2026-10-28T00:00:00Z" }),
+      yt("b", { published: "2026-10-30T00:00:00Z" }),
+      yt("c", { published: "2026-10-29T00:00:00Z" }),
+      yt("d", { published: "2026-10-27T00:00:00Z" }),
+      yt("e", { published: "2026-10-26T00:00:00Z" }),
+    ];
+    const { kept, dropped } = applyChannelDailyCap(rows, "2026-10-31T22:05:00.000Z");
+    expect(kept.map((r) => r.candidate_id)).toEqual(["youtube-b", "youtube-c", "youtube-a"]);
+    expect(dropped).toEqual([
+      { candidate_id: "youtube-d", channel: "UC-channel" },
+      { candidate_id: "youtube-e", channel: "UC-channel" },
+    ]);
+  });
+
+  it("groups by channel — one prolific channel never starves another", () => {
+    const rows = [
+      yt("a1", { channel: "UC-prolific" }),
+      yt("a2", { channel: "UC-prolific" }),
+      yt("a3", { channel: "UC-prolific" }),
+      yt("a4", { channel: "UC-prolific" }),
+      yt("b1", { channel: "UC-quiet" }),
+    ];
+    const { kept, dropped } = applyChannelDailyCap(rows, "2026-10-31T22:05:00.000Z");
+    const keptIds = kept.map((r) => r.candidate_id);
+    expect(keptIds).toContain("youtube-b1"); // the quiet channel keeps its slot
+    expect(keptIds.filter((id) => id.startsWith("youtube-a"))).toHaveLength(
+      YT_PER_CHANNEL_DAILY_CAP,
+    );
+    expect(dropped.map((d) => d.candidate_id)).toEqual(["youtube-a4"]);
+  });
+
+  it("only constrains rows fetched TODAY — carried-over rows pass untouched", () => {
+    const rows = [
+      yt("old1", { fetched_at: "2026-10-29T22:00:00.000Z" }),
+      yt("old2", { fetched_at: "2026-10-29T22:00:00.000Z" }),
+      yt("old3", { fetched_at: "2026-10-29T22:00:00.000Z" }),
+      yt("old4", { fetched_at: "2026-10-29T22:00:00.000Z" }),
+    ];
+    const { kept, dropped } = applyChannelDailyCap(rows, "2026-10-31T22:05:00.000Z");
+    expect(kept).toHaveLength(4);
+    expect(dropped).toEqual([]);
+  });
+
+  it("never touches non-youtube rows, even from another channel key", () => {
+    const rows = [
+      yt("h1", { source: "hn" as const, channel: "hn" }),
+      yt("m1", { source: "miniflux" as const, channel: "TLDR" }),
+      yt("r1", { source: "readeck" as const, channel: "someblog" }),
+    ];
+    const { kept, dropped } = applyChannelDailyCap(rows, "2026-10-31T22:05:00.000Z");
+    expect(kept).toHaveLength(3);
+    expect(dropped).toEqual([]);
+  });
+
+  it("is deterministic on ties (stable id tiebreak)", () => {
+    const rows = [
+      yt("dup2", { published: "2026-10-30T00:00:00Z" }),
+      yt("dup1", { published: "2026-10-30T00:00:00Z" }),
+      yt("dup3", { published: "2026-10-30T00:00:00Z" }),
+    ];
+    const first = applyChannelDailyCap(rows, "2026-10-31T22:05:00.000Z");
+    const second = applyChannelDailyCap(rows, "2026-10-31T22:05:00.000Z");
+    expect(first.kept.map((r) => r.candidate_id)).toEqual(second.kept.map((r) => r.candidate_id));
+    expect(first.kept.map((r) => r.candidate_id)).toEqual([
+      "youtube-dup1",
+      "youtube-dup2",
+      "youtube-dup3",
+    ]);
   });
 });
